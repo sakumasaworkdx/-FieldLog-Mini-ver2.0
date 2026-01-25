@@ -103,7 +103,7 @@ textarea{
   background:#000
 }
 
-/* ===== 写真プレビュー（標準A：240px） ===== */
+/* ===== 入力部 写真プレビュー（240px） ===== */
 #preview{
   display:block;
   max-width:100%;
@@ -143,6 +143,19 @@ textarea{
   color:#f2f2f2;
   cursor:pointer
 }
+
+/* ===== 保存件数下 写真プレビュー（入力部と同じ240px） ===== */
+.list .item img{
+  display:block;
+  max-width:100%;
+  max-height:240px;
+  width:auto;
+  height:auto;
+  object-fit:contain;
+  border-radius:6px;
+  margin-top:6px
+}
+
 .warn{
   margin-top:6px;
   color:#ffcc66;
