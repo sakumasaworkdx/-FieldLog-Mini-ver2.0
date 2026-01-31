@@ -10,46 +10,38 @@
 <body>
   <header class="topbar">
     <h1>FieldLog Mini <span class="pill">v3.0</span></h1>
-    <a href="../index.html" class="nav-link">← v2(旧版)に戻る</a>
+    <a href="../index.html" style="color:#aaa; font-size:12px; text-decoration:none;">← v2(旧版)に戻る</a>
   </header>
 
   <main class="container">
     <section class="card">
-      <div class="card-header">
-        <h2>📸 調査入力</h2>
-        <span class="badge">保存数: <span id="count">0</span></span>
-      </div>
-      
+      <h2>📸 調査入力</h2>
       <div class="row">
-        <label class="btn primary">
+        <label class="btn success" style="cursor:pointer;">
           📷 写真撮影
           <input id="photoInput" type="file" accept="image/*" capture="environment" style="display:none;">
         </label>
-        <button id="btnGeo" class="btn secondary">📍 GPS取得</button>
-        <button id="btnSave" class="btn success">💾 保存</button>
+        <button id="btnGeo" class="btn primary">📍 GPS取得</button>
+        <button id="btnSave" class="btn danger">💾 保存</button>
       </div>
 
       <div class="geo-bar">
-        <span>緯度: <span id="lat">-</span></span>
-        <span>経度: <span id="lng">-</span></span>
-        <span id="geoWarn" class="warn-msg" style="display:none;">⚠️ GPS未取得</span>
+        緯度: <span id="lat">-</span> / 経度: <span id="lng">-</span>
+        <div id="geoWarn" style="color:#ff4444; font-size:11px; display:none;">⚠️ GPS未取得（保存は可能です）</div>
       </div>
 
       <div class="input-grid">
-        <div class="input-group"><label>地点</label><select id="selLocation"></select></div>
-        <div class="input-group"><label>地点2</label><select id="selLocation2"></select></div>
-        <div class="input-group"><label>項目</label><select id="selItem"></select></div>
+        <select id="selLocation" class="select-box"></select>
+        <select id="selLocation2" class="select-box"></select>
+        <select id="selItem" class="select-box"></select>
       </div>
       
       <textarea id="memo" placeholder="備考1"></textarea>
       <textarea id="memo2" placeholder="備考2"></textarea>
 
       <div class="preview-panel">
-        <img id="preview" src="" alt="" />
-        <div class="preview-info">
-          <div id="autoName" class="mono">---</div>
-          <div id="ts" class="small">---</div>
-        </div>
+        <img id="preview" src="" alt="" style="max-width:100%; max-height:200px; display:block; margin:10px 0; border-radius:8px;">
+        <div id="autoName" class="mono" style="font-size:11px; color:#888;"></div>
       </div>
     </section>
 
@@ -64,11 +56,18 @@
         </table>
       </div>
       <div class="row" style="margin-top:15px">
-        <button id="btnExportZip" class="btn primary">📦 ZIP出力 (CSV+写真)</button>
+        <button id="btnExportZip" class="btn primary">📦 ZIP書き出し</button>
         <button id="btnClear" class="btn danger-outline">🗑️ 全削除</button>
       </div>
-      <div id="exportStatus" class="hint"></div>
     </section>
+
+    <details class="card">
+      <summary>⚙️ 設定 (CSVリスト読み込み)</summary>
+      <div class="row" style="margin-top:10px">
+        <input id="listCsvInput" type="file" accept=".csv" />
+        <button id="btnClearLists" class="btn danger-outline" style="padding:5px">リスト削除</button>
+      </div>
+    </details>
   </main>
 
   <script src="../jszip.min.js"></script>
