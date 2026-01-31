@@ -1,46 +1,39 @@
 const $ = (id) => document.getElementById(id);
 let db, currentGeo = null, currentFile = null;
 
-// DB初期化
 const req = indexedDB.open("offline_survey_pwa_db", 2);
 req.onsuccess = (e) => { db = e.target.result; renderTable(); loadLists(); };
 
-// GPS取得の挙動を改善
+// GPS取得
 $("btnGeo").onclick = () => {
-    const btn = $("btnGeo");
     const check = $("geoCheck");
-    btn.textContent = "⌛ 取得中...";
-    btn.style.opacity = "0.6";
-
+    check.textContent = "⌛"; // 取得中
+    
     navigator.geolocation.getCurrentPosition(
         (p) => {
             currentGeo = p;
             $("lat").textContent = p.coords.latitude.toFixed(6);
             $("lng").textContent = p.coords.longitude.toFixed(6);
-            btn.textContent = "📍 GPS取得";
-            btn.style.opacity = "1";
-            check.textContent = "✅"; // チェックマークを表示
+            check.textContent = "✅";
         },
         (err) => {
-            btn.textContent = "📍 GPS再試行";
-            btn.style.opacity = "1";
             check.textContent = "❌";
-            alert("GPS失敗: " + err.message);
+            alert("GPSエラー: " + err.message);
         },
         { enableHighAccuracy: true, timeout: 10000 }
     );
 };
 
-// 写真選択でチェック
+// 写真選択
 $("photoInput").onchange = (e) => {
     currentFile = e.target.files[0];
-    if(currentFile) $("photoCheck").style.display = "inline";
+    if(currentFile) $("photoCheck").textContent = "✅";
 };
 
-// 保存処理
+// 保存
 $("btnSave").onclick = async () => {
     const loc = $("selLocation").value;
-    if (!currentFile && !confirm("写真がありません。保存しますか？")) return;
+    if (!currentFile && !confirm("写真なしで保存しますか？")) return;
 
     const id = Date.now();
     const rec = {
@@ -63,7 +56,7 @@ $("btnSave").onclick = async () => {
     };
 };
 
-// リスト読み込み・描画などは前回同様（省略せず含めてください）
+// リスト読み込み
 $("listCsvInput").onchange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -76,6 +69,7 @@ $("listCsvInput").onchange = async (e) => {
         const [l, i] = row.split(",");
         if (l || i) store.put({ id: Math.random(), location: l?.trim(), item: i?.trim() });
     }
+    alert("リスト更新完了");
     loadLists();
 };
 
