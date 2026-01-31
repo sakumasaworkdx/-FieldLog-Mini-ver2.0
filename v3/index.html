@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <link rel="stylesheet" href="./styles.css?v=105" />
-  <title>FieldLog Mini v3.5</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <title>FieldLog Mini v3.0</title>
 </head>
 <body>
   <main class="container">
-    <details class="card settings-card">
+    <details class="card settings-card" open>
       <summary>⚙️ CSV読み込み (地点,小区分,項目)</summary>
       <input id="listCsvInput" type="file" accept=".csv" style="margin-top:10px;" />
     </details>
@@ -38,7 +38,7 @@
       
       <textarea id="memo" class="input-field memo-area" placeholder="備考"></textarea>
       
-      <button id="btnSaveFinal" class="btn-save" type="button">💾 データを保存</button>
+      <button id="btnSave" class="btn-save" type="button">💾 データを保存</button>
     </section>
 
     <section class="card history-card">
@@ -52,6 +52,6 @@
     </section>
   </main>
   <script src="../jszip.min.js"></script>
-  <script src="./app.js?v=105"></script>
+  <script src="./app.js"></script>
 </body>
 </html>
