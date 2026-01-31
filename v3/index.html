@@ -3,45 +3,42 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <link rel="stylesheet" href="./styles.css?v=3" />
-  <title>FieldLog Mini v3.1</title>
+  <link rel="stylesheet" href="./styles.css?v=4" />
+  <title>FieldLog Mini v3.2</title>
 </head>
 <body>
   <main class="container">
     <details class="card settings-card">
-      <summary>⚙️ 調査リスト(CSV)を読み込む</summary>
-      <div class="row" style="margin-top:10px">
-        <input id="listCsvInput" type="file" accept=".csv" style="font-size:12px;" />
-      </div>
+      <summary>⚙️ 調査リスト(CSV)設定</summary>
+      <input id="listCsvInput" type="file" accept=".csv" />
     </details>
 
     <section class="card">
-      <h2 style="color:#00bb55;">📸 調査入力</h2>
-      <div class="row">
-        <label class="btn-green" style="flex:1; text-align:center; padding:15px; cursor:pointer;">
-          📷 写真
-          <input id="photoInput" type="file" accept="image/*" capture="environment" style="display:none;">
-          <span id="photoCheck" style="display:none;">✅</span>
+      <div class="action-grid">
+        <label class="btn-main photo-btn">
+          <input id="photoInput" type="file" accept="image/*" capture="environment">
+          <span class="icon">📷</span>
+          <span class="label">写真 <span id="photoCheck"></span></span>
         </label>
-        
-        <button id="btnGeo" class="btn-blue" style="flex:1;">📍 GPS取得 <span id="geoCheck"></span></button>
+
+        <button id="btnGeo" class="btn-main geo-btn">
+          <span class="icon">📍</span>
+          <span class="label">GPS取得 <span id="geoCheck"></span></span>
+        </button>
       </div>
 
       <div class="geo-info">
-        <div>緯度: <span id="lat">-</span></div>
-        <div>経度: <span id="lng">-</span></div>
+        緯度: <span id="lat">-</span> / 経度: <span id="lng">-</span>
       </div>
 
       <select id="selLocation" class="input-field"><option value="">地点を選択</option></select>
       <select id="selItem" class="input-field"><option value="">項目を選択</option></select>
-      
       <textarea id="memo" class="input-field memo-area" placeholder="備考を入力..."></textarea>
       
-      <button id="btnSave" class="btn-red">💾 データを保存</button>
+      <button id="btnSave" class="btn-save">💾 データを保存</button>
     </section>
 
     <section class="card">
-      <h2 style="font-size:14px;">📊 履歴 (直近10件)</h2>
       <div class="table-container">
         <table>
           <thead><tr><th>時刻</th><th>地点</th><th>写</th><th>G</th></tr></thead>
@@ -52,6 +49,6 @@
   </main>
 
   <script src="../jszip.min.js"></script>
-  <script src="./app.js?v=3"></script>
+  <script src="./app.js?v=4"></script>
 </body>
 </html>
