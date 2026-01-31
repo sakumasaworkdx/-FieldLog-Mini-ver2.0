@@ -1,32 +1,66 @@
-* { box-sizing: border-box; } /* これが重要：はみ出しを防止します */
+* { box-sizing: border-box; }
+body { background: #000; color: #fff; font-family: sans-serif; margin: 0; padding: 8px; }
 
-body { background: #000; color: #fff; font-family: sans-serif; margin: 0; padding: 10px; }
+.container { max-width: 500px; margin: 0 auto; }
+.card { background: #111; border: 1px solid #333; border-radius: 12px; padding: 12px; margin-bottom: 12px; }
 
-.card { 
-    background: #111; border: 1px solid #444; border-radius: 12px; 
-    padding: 15px; margin-bottom: 15px; width: 100%;
+/* ⚙️ CSV設定の調整 */
+.settings-card { background: #1a1a1a; border-style: dashed; font-size: 13px; }
+summary { cursor: pointer; padding: 5px; color: #888; }
+
+/* 📸📍 メインボタンのグリッド配置 */
+.action-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* 50%ずつ */
+    gap: 10px;
+    margin-bottom: 15px;
 }
 
-.settings-card { background: #1a1a1a; border-style: dashed; }
+/* 写真ラベルとGPSボタンを同じ見た目にする */
+.btn-main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 90px; /* 高さを固定してそろえる */
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    color: #fff;
+    text-decoration: none;
+    -webkit-appearance: none;
+}
 
-.input-field { 
-    width: 100%; background: #222; color: #fff; border: 1px solid #666; 
-    padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 16px;
+.photo-btn { background: #00bb55; } /* 緑 */
+.geo-btn { background: #007bff; }   /* 青 */
+
+.btn-main .icon { font-size: 24px; margin-bottom: 4px; }
+.btn-main input { display: none; } /* 本物のファイル入力は隠す */
+
+/* GPS情報 */
+.geo-info {
+    background: #000; border: 1px solid #222; border-radius: 6px;
+    padding: 8px; margin-bottom: 12px; text-align: center;
+    font-family: monospace; font-size: 12px; color: #00ff00;
+}
+
+/* 入力欄（はみ出し防止） */
+.input-field {
+    width: 100%; background: #222; color: #fff; border: 1px solid #444;
+    padding: 12px; border-radius: 8px; margin-bottom: 10px; font-size: 16px;
     display: block;
 }
+.memo-area { height: 80px; resize: none; }
 
-.memo-area { height: 100px; resize: none; }
-
-.geo-info { 
-    background: #000; padding: 10px; border: 1px solid #333; 
-    margin-bottom: 15px; font-family: monospace; font-size: 13px; color: #00ff00;
+/* 保存ボタン */
+.btn-save {
+    width: 100%; padding: 16px; border-radius: 10px; border: none;
+    background: #dc3545; color: #fff; font-size: 18px; font-weight: bold;
 }
 
-.btn-green { background: #00bb55; color: #fff; border: none; font-weight: bold; }
-.btn-blue  { background: #007bff; color: #fff; border: none; font-weight: bold; cursor: pointer; }
-.btn-red   { background: #dc3545; color: #fff; border: none; font-weight: bold; width: 100%; padding: 15px; font-size: 18px; border-radius: 8px; }
-
+/* テーブル */
 .table-container { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-th, td { border-bottom: 1px solid #333; padding: 10px; text-align: center; }
-th { color: #888; font-size: 11px; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th, td { border-bottom: 1px solid #222; padding: 10px; text-align: center; }
