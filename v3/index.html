@@ -3,14 +3,17 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <link rel="stylesheet" href="./styles.css?v=4" />
-  <title>FieldLog Mini v3.2</title>
+  <link rel="stylesheet" href="./styles.css?v=5" />
+  <title>FieldLog Mini v3.3</title>
 </head>
 <body>
   <main class="container">
     <details class="card settings-card">
-      <summary>⚙️ 調査リスト(CSV)設定</summary>
-      <input id="listCsvInput" type="file" accept=".csv" />
+      <summary>⚙️ 調査リスト(CSV)設定・読込</summary>
+      <div style="margin-top:10px;">
+        <input id="listCsvInput" type="file" accept=".csv" />
+        <p style="font-size:10px; color:#888; margin-top:5px;">※1行目ヘッダ「地点,項目」のCSVを選択してください</p>
+      </div>
     </details>
 
     <section class="card">
@@ -20,8 +23,7 @@
           <span class="icon">📷</span>
           <span class="label">写真 <span id="photoCheck"></span></span>
         </label>
-
-        <button id="btnGeo" class="btn-main geo-btn">
+        <button id="btnGeo" class="btn-main geo-btn" type="button">
           <span class="icon">📍</span>
           <span class="label">GPS取得 <span id="geoCheck"></span></span>
         </button>
@@ -35,10 +37,14 @@
       <select id="selItem" class="input-field"><option value="">項目を選択</option></select>
       <textarea id="memo" class="input-field memo-area" placeholder="備考を入力..."></textarea>
       
-      <button id="btnSave" class="btn-save">💾 データを保存</button>
+      <button id="btnSave" class="btn-save" type="button">💾 データを保存</button>
     </section>
 
-    <section class="card">
+    <section class="card history-card">
+      <h2 style="font-size:14px; margin-bottom:10px; display:flex; justify-content:space-between;">
+        📊 保存履歴 (全件)
+        <button id="btnClear" style="background:none; border:1px solid #444; color:#888; font-size:10px; border-radius:4px; cursor:pointer;">全削除</button>
+      </h2>
       <div class="table-container">
         <table>
           <thead><tr><th>時刻</th><th>地点</th><th>写</th><th>G</th></tr></thead>
@@ -49,6 +55,6 @@
   </main>
 
   <script src="../jszip.min.js"></script>
-  <script src="./app.js?v=4"></script>
+  <script src="./app.js?v=5"></script>
 </body>
 </html>
