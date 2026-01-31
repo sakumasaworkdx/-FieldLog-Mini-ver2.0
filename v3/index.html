@@ -2,67 +2,56 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="theme-color" content="#00bb55" />
-  <link rel="stylesheet" href="./styles.css" />
-  <title>FieldLog Mini v3.0</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <link rel="stylesheet" href="./styles.css?v=3" />
+  <title>FieldLog Mini v3.1</title>
 </head>
 <body>
-  <header style="background:#111; padding:15px; border-bottom:1px solid #333;">
-    <h1 style="margin:0; font-size:18px; color:#fff;">FieldLog Mini v3.0</h1>
-  </header>
+  <main class="container">
+    <details class="card settings-card">
+      <summary>⚙️ 調査リスト(CSV)を読み込む</summary>
+      <div class="row" style="margin-top:10px">
+        <input id="listCsvInput" type="file" accept=".csv" style="font-size:12px;" />
+      </div>
+    </details>
 
-  <main style="padding:10px; max-width:500px; margin:0 auto;">
     <section class="card">
-      <h2 style="color:#00bb55; font-size:16px;">📸 調査入力</h2>
-      <div style="display:flex; gap:10px; margin-bottom:15px;">
+      <h2 style="color:#00bb55;">📸 調査入力</h2>
+      <div class="row">
         <label class="btn-green" style="flex:1; text-align:center; padding:15px; cursor:pointer;">
-          📷 写真撮影
+          📷 写真
           <input id="photoInput" type="file" accept="image/*" capture="environment" style="display:none;">
+          <span id="photoCheck" style="display:none;">✅</span>
         </label>
-        <button id="btnGeo" class="btn-blue" style="flex:1;">📍 GPS取得</button>
+        
+        <button id="btnGeo" class="btn-blue" style="flex:1;">📍 GPS取得 <span id="geoCheck"></span></button>
       </div>
 
-      <div style="background:#000; padding:10px; border:1px solid #444; margin-bottom:15px; font-family:monospace;">
-        緯度: <span id="lat">-</span><br>
-        経度: <span id="lng">-</span>
-        <div id="geoWarn" style="color:#ff4444; display:none;">⚠️ GPS未取得</div>
+      <div class="geo-info">
+        <div>緯度: <span id="lat">-</span></div>
+        <div>経度: <span id="lng">-</span></div>
       </div>
 
-      <select id="selLocation" class="input-field"></select>
-      <select id="selItem" class="input-field"></select>
-      <textarea id="memo" class="input-field" placeholder="備考を入力..." style="height:80px;"></textarea>
+      <select id="selLocation" class="input-field"><option value="">地点を選択</option></select>
+      <select id="selItem" class="input-field"><option value="">項目を選択</option></select>
       
-      <button id="btnSave" class="btn-red" style="width:100%; margin-top:10px;">💾 保存する</button>
-
-      <div id="previewArea" style="margin-top:15px; text-align:center;">
-        <img id="preview" style="max-width:100%; border-radius:8px; display:none;">
-      </div>
+      <textarea id="memo" class="input-field memo-area" placeholder="備考を入力..."></textarea>
+      
+      <button id="btnSave" class="btn-red">💾 データを保存</button>
     </section>
 
-    <section class="card" style="margin-top:20px;">
-      <h2 style="color:#00bb55; font-size:16px;">📊 保存データ確認</h2>
-      <div style="overflow-x:auto;">
-        <table id="dataTable" style="width:100%; border-collapse:collapse; background:#000;">
-          <thead>
-            <tr style="background:#333;"><th>時刻</th><th>地点</th><th>写</th><th>G</th></tr>
-          </thead>
-          <tbody id="list" style="text-align:center;"></tbody>
+    <section class="card">
+      <h2 style="font-size:14px;">📊 履歴 (直近10件)</h2>
+      <div class="table-container">
+        <table>
+          <thead><tr><th>時刻</th><th>地点</th><th>写</th><th>G</th></tr></thead>
+          <tbody id="list"></tbody>
         </table>
       </div>
-      <div style="display:flex; gap:10px; margin-top:15px;">
-        <button id="btnExportZip" class="btn-gray" style="flex:2;">📦 ZIP保存</button>
-        <button id="btnClear" class="btn-outline" style="flex:1;">🗑️ 消去</button>
-      </div>
     </section>
-
-    <details style="margin-top:20px; color:#888; font-size:12px;">
-      <summary>⚙️ CSVリスト読み込み</summary>
-      <input id="listCsvInput" type="file" accept=".csv" style="margin-top:10px;">
-    </details>
   </main>
 
   <script src="../jszip.min.js"></script>
-  <script src="./app.js"></script>
+  <script src="./app.js?v=3"></script>
 </body>
 </html>
