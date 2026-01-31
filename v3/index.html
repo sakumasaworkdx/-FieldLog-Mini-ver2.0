@@ -4,11 +4,11 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <link rel="stylesheet" href="./styles.css" />
-  <title>FieldLog Mini v3.0</title>
+  <title>FieldLog Mini v3.5</title>
 </head>
 <body>
   <main class="container">
-    <details class="card settings-card" open>
+    <details class="card settings-card">
       <summary>⚙️ CSV読み込み (地点,小区分,項目)</summary>
       <input id="listCsvInput" type="file" accept=".csv" style="margin-top:10px;" />
     </details>
@@ -45,7 +45,15 @@
       <h2 style="font-size:14px; margin-bottom:10px;">📊 保存履歴 (全件)</h2>
       <div class="table-container">
         <table>
-          <thead><tr><th>時刻</th><th>地点</th><th>写</th><th>G</th></tr></thead>
+          <thead>
+            <tr>
+              <th style="width:25%;">地点</th>
+              <th style="width:25%;">小区分</th>
+              <th style="width:25%;">項目</th>
+              <th style="width:10%;">写</th>
+              <th style="width:10%;">G</th>
+            </tr>
+          </thead>
           <tbody id="list"></tbody>
         </table>
       </div>
