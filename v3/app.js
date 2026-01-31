@@ -1,8 +1,18 @@
 const $ = (id) => document.getElementById(id);
 let db, currentGeo = null, currentFile = null;
 
+// IndexedDBの初期化
 const req = indexedDB.open("offline_survey_pwa_db", 2);
-req.onsuccess = (e) => { db = e.target.result; renderTable(); loadLists(); };
+req.onupgradeneeded = (e) => {
+    const d = e.target.result;
+    if (!d.objectStoreNames.contains("surveys")) d.createObjectStore("surveys", { keyPath: "id" });
+    if (!d.objectStoreNames.contains("lists")) d.createObjectStore("lists", { keyPath: "id" });
+};
+req.onsuccess = (e) => { 
+    db = e.target.result; 
+    renderTable(); 
+    loadLists(); 
+};
 
 // GPS取得
 $("btnGeo").onclick = () => {
@@ -33,11 +43,12 @@ $("photoInput").onchange = (e) => {
     }
 };
 
-// 3列CSV読み込み
+// 【重要】CSV読み込み処理
 $("listCsvInput").onchange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     const text = await file.text();
+    // 改行コードに関わらず分割し、空行を除去。1行目（ヘッダ）を飛ばす
     const rows = text.split(/\r?\n/).filter(line => line.trim() !== "").slice(1);
     
     const tx = db.transaction("lists", "readwrite");
@@ -53,27 +64,35 @@ $("listCsvInput").onchange = async (e) => {
             item: cols[2]?.trim() || "" 
         });
     });
-    tx.oncomplete = () => { alert("リスト更新完了"); loadLists(); };
+
+    tx.oncomplete = () => { 
+        alert(rows.length + "件のリストを更新しました。"); 
+        loadLists(); // 読み込み完了後にプルダウンを更新
+    };
 };
 
+// プルダウンの生成
 async function loadLists() {
     if (!db) return;
     const tx = db.transaction("lists", "readonly");
-    tx.objectStore("lists").getAll().onsuccess = (e) => {
+    const store = tx.objectStore("lists");
+    store.getAll().onsuccess = (e) => {
         const data = e.target.result;
-        const setOptions = (id, values, defaultText) => {
+        
+        const updateSelect = (id, values, defaultText) => {
             const el = $(id);
             el.innerHTML = `<option value="">${defaultText}</option>`;
-            [...new Set(values)].filter(v => v).forEach(v => {
+            const uniqueValues = [...new Set(values)].filter(v => v);
+            uniqueValues.forEach(v => {
                 const opt = document.createElement("option");
-                opt.value = v;
-                opt.textContent = v;
+                opt.value = v; opt.textContent = v;
                 el.appendChild(opt);
             });
         };
-        setOptions("selLocation", data.map(d => d.loc), "地点を選択");
-        setOptions("selSubLocation", data.map(d => d.sub), "小区分を選択");
-        setOptions("selItem", data.map(d => d.item), "項目を選択");
+
+        updateSelect("selLocation", data.map(d => d.loc), "地点を選択");
+        updateSelect("selSubLocation", data.map(d => d.sub), "小区分を選択");
+        updateSelect("selItem", data.map(d => d.item), "項目を選択");
     };
 }
 
@@ -99,7 +118,7 @@ $("btnSave").onclick = async () => {
     const tx = db.transaction("surveys", "readwrite");
     tx.objectStore("surveys").put(rec).onsuccess = () => {
         alert("保存完了");
-        // リセット処理
+        // リセット
         currentFile = null;
         $("previewContainer").style.display = "none";
         $("photoCheck").textContent = "";
@@ -108,20 +127,21 @@ $("btnSave").onclick = async () => {
     };
 };
 
+// 履歴テーブル表示
 async function renderTable() {
     if (!db) return;
     const tx = db.transaction("surveys", "readonly");
     tx.objectStore("surveys").getAll().onsuccess = (e) => {
         const listEl = $("list");
         listEl.innerHTML = "";
-        // 新しい順に並び替え
-        e.target.result.sort((a,b) => b.id - a.id).forEach(r => {
+        const sorted = e.target.result.sort((a,b) => b.id - a.id);
+        sorted.forEach(r => {
             const tr = document.createElement("tr");
             tr.style.fontSize = "11px";
             tr.innerHTML = `
-                <td style="text-align:left; word-break:break-all;">${r.location}</td>
-                <td style="text-align:left; word-break:break-all;">${r.subLocation}</td>
-                <td style="text-align:left; word-break:break-all;">${r.item}</td>
+                <td style="text-align:left;">${r.location}</td>
+                <td style="text-align:left;">${r.subLocation}</td>
+                <td style="text-align:left;">${r.item}</td>
                 <td>${r.photoBlob.size > 0 ? "◯" : "-"}</td>
                 <td>${r.lat !== 0 ? "◯" : "-"}</td>
             `;
