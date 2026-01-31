@@ -8,7 +8,7 @@
 </head>
 <body>
   <main class="container">
-    <details class="card settings-card">
+    <details class="card settings-card" open>
       <summary>⚙️ CSV読み込み (地点,小区分,項目)</summary>
       <input id="listCsvInput" type="file" accept=".csv" style="margin-top:10px;" />
     </details>
@@ -42,12 +42,12 @@
     </section>
 
     <section class="card history-card">
-      <h2 style="font-size:14px; margin-bottom:10px;">📊 保存履歴 (全件)</h2>
+      <h2 style="font-size:14px; margin-bottom:10px;">📊 保存履歴</h2>
       <div class="table-container">
         <table>
           <thead>
             <tr>
-              <th style="width:25%;">地点</th>
+              <th style="width:30%;">地点</th>
               <th style="width:25%;">小区分</th>
               <th style="width:25%;">項目</th>
               <th style="width:10%;">写</th>
