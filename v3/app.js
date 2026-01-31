@@ -1,18 +1,8 @@
 const $ = (id) => document.getElementById(id);
 let db, currentGeo = null, currentFile = null;
 
-// IndexedDB接続（バージョン管理を厳格に）
 const req = indexedDB.open("offline_survey_pwa_db", 2);
-req.onupgradeneeded = (e) => {
-    const d = e.target.result;
-    if (!d.objectStoreNames.contains("surveys")) d.createObjectStore("surveys", { keyPath: "id" });
-    if (!d.objectStoreNames.contains("lists")) d.createObjectStore("lists", { keyPath: "id" });
-};
-req.onsuccess = (e) => { 
-    db = e.target.result; 
-    renderTable(); 
-    loadLists(); 
-};
+req.onsuccess = (e) => { db = e.target.result; renderTable(); loadLists(); };
 
 // GPS取得
 $("btnGeo").onclick = () => {
@@ -24,12 +14,12 @@ $("btnGeo").onclick = () => {
             $("lng").textContent = p.coords.longitude.toFixed(6);
             $("geoCheck").textContent = "✅";
         },
-        (err) => { $("geoCheck").textContent = "❌"; alert("GPS失敗: " + err.message); },
+        (err) => { $("geoCheck").textContent = "❌"; alert("GPS失敗"); },
         { enableHighAccuracy: true, timeout: 10000 }
     );
 };
 
-// 写真選択・プレビュー表示
+// 写真選択・プレビュー
 $("photoInput").onchange = (e) => {
     currentFile = e.target.files[0];
     if(currentFile) {
@@ -43,45 +33,34 @@ $("photoInput").onchange = (e) => {
     }
 };
 
-// CSV読み込み (A:地点, B:小区分, C:項目)
+// 3列CSV読み込み
 $("listCsvInput").onchange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    try {
-        const text = await file.text();
-        const rows = text.split(/\r?\n/).filter(line => line.trim() !== "").slice(1);
-        
-        const tx = db.transaction("lists", "readwrite");
-        const store = tx.objectStore("lists");
-        await store.clear();
+    const text = await file.text();
+    const rows = text.split(/\r?\n/).filter(line => line.trim() !== "").slice(1);
+    
+    const tx = db.transaction("lists", "readwrite");
+    const store = tx.objectStore("lists");
+    await store.clear();
 
-        rows.forEach((row, idx) => {
-            const cols = row.split(",");
-            // 3列しっかり入るように
-            store.put({ 
-                id: idx, 
-                loc: cols[0]?.trim() || "", 
-                sub: cols[1]?.trim() || "", 
-                item: cols[2]?.trim() || "" 
-            });
+    rows.forEach((row, idx) => {
+        const cols = row.split(",");
+        store.put({ 
+            id: idx, 
+            loc: cols[0]?.trim() || "", 
+            sub: cols[1]?.trim() || "", 
+            item: cols[2]?.trim() || "" 
         });
-        tx.oncomplete = () => {
-            alert(rows.length + "件のリストを読み込みました。");
-            loadLists();
-        };
-    } catch (err) {
-        alert("CSV読み込みエラー: " + err.message);
-    }
+    });
+    tx.oncomplete = () => { alert("リスト更新完了"); loadLists(); };
 };
 
 async function loadLists() {
     if (!db) return;
     const tx = db.transaction("lists", "readonly");
-    const store = tx.objectStore("lists");
-    store.getAll().onsuccess = (e) => {
+    tx.objectStore("lists").getAll().onsuccess = (e) => {
         const data = e.target.result;
-        
-        // プルダウンを初期化
         const setOptions = (id, values, defaultText) => {
             const el = $(id);
             el.innerHTML = `<option value="">${defaultText}</option>`;
@@ -92,24 +71,16 @@ async function loadLists() {
                 el.appendChild(opt);
             });
         };
-
         setOptions("selLocation", data.map(d => d.loc), "地点を選択");
         setOptions("selSubLocation", data.map(d => d.sub), "小区分を選択");
         setOptions("selItem", data.map(d => d.item), "項目を選択");
-        
-        console.log("Lists loaded:", data.length);
     };
 }
 
-// 保存ボタン（ここが一番大事です）
+// 保存
 $("btnSave").onclick = async () => {
-    // 必須チェック（地点だけでも選ばれているか）
-    if (!$("selLocation").value) {
-        alert("地点を選択してください");
-        return;
-    }
-
-    if (!currentFile && !confirm("写真がありません。このまま保存しますか？")) return;
+    if (!$("selLocation").value) { alert("地点を選択してください"); return; }
+    if (!currentFile && !confirm("写真なしで保存しますか？")) return;
 
     const id = Date.now();
     const rec = {
@@ -118,34 +89,23 @@ $("btnSave").onclick = async () => {
         lat: currentGeo ? currentGeo.coords.latitude : 0,
         lng: currentGeo ? currentGeo.coords.longitude : 0,
         location: $("selLocation").value,
-        subLocation: $("selSubLocation").value || "",
-        item: $("selItem").value || "",
+        subLocation: $("selSubLocation").value || "-",
+        item: $("selItem").value || "-",
         memo: $("memo").value,
         photoName: currentFile ? `img_${id}.jpg` : "no_image.jpg",
         photoBlob: currentFile || new Blob([])
     };
 
-    try {
-        const tx = db.transaction("surveys", "readwrite");
-        const store = tx.objectStore("surveys");
-        const request = store.put(rec);
-
-        request.onsuccess = () => {
-            alert("保存完了しました");
-            // プレビューと選択をリセット
-            currentFile = null;
-            $("previewContainer").style.display = "none";
-            $("photoCheck").textContent = "";
-            $("memo").value = "";
-            renderTable(); // ページをリロードせずに表を更新
-        };
-        
-        request.onerror = (err) => {
-            alert("保存に失敗しました: " + err.target.error);
-        };
-    } catch (e) {
-        alert("保存処理中にエラーが発生しました: " + e.message);
-    }
+    const tx = db.transaction("surveys", "readwrite");
+    tx.objectStore("surveys").put(rec).onsuccess = () => {
+        alert("保存完了");
+        // リセット処理
+        currentFile = null;
+        $("previewContainer").style.display = "none";
+        $("photoCheck").textContent = "";
+        $("memo").value = "";
+        renderTable(); 
+    };
 };
 
 async function renderTable() {
@@ -155,12 +115,13 @@ async function renderTable() {
         const listEl = $("list");
         listEl.innerHTML = "";
         // 新しい順に並び替え
-        const results = e.target.result.sort((a,b) => b.id - a.id);
-        results.forEach(r => {
+        e.target.result.sort((a,b) => b.id - a.id).forEach(r => {
             const tr = document.createElement("tr");
+            tr.style.fontSize = "11px";
             tr.innerHTML = `
-                <td>${new Date(r.createdAt).toLocaleTimeString()}</td>
-                <td style="text-align:left;">${r.location}</td>
+                <td style="text-align:left; word-break:break-all;">${r.location}</td>
+                <td style="text-align:left; word-break:break-all;">${r.subLocation}</td>
+                <td style="text-align:left; word-break:break-all;">${r.item}</td>
                 <td>${r.photoBlob.size > 0 ? "◯" : "-"}</td>
                 <td>${r.lat !== 0 ? "◯" : "-"}</td>
             `;
