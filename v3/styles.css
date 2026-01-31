@@ -1,66 +1,40 @@
 * { box-sizing: border-box; }
 body { background: #000; color: #fff; font-family: sans-serif; margin: 0; padding: 8px; }
 
-.container { max-width: 500px; margin: 0 auto; }
+.container { max-width: 500px; margin: 0 auto; padding-bottom: 50px; }
 .card { background: #111; border: 1px solid #333; border-radius: 12px; padding: 12px; margin-bottom: 12px; }
 
-/* ⚙️ CSV設定の調整 */
-.settings-card { background: #1a1a1a; border-style: dashed; font-size: 13px; }
-summary { cursor: pointer; padding: 5px; color: #888; }
-
-/* 📸📍 メインボタンのグリッド配置 */
-.action-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr; /* 50%ずつ */
-    gap: 10px;
-    margin-bottom: 15px;
-}
-
-/* 写真ラベルとGPSボタンを同じ見た目にする */
+.action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
 .btn-main {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 90px; /* 高さを固定してそろえる */
-    border-radius: 10px;
-    border: none;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: bold;
-    color: #fff;
-    text-decoration: none;
-    -webkit-appearance: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 90px; border-radius: 10px; border: none; cursor: pointer; color: #fff;
+}
+.photo-btn { background: #00bb55; }
+.geo-btn { background: #007bff; }
+.icon { font-size: 24px; }
+
+.geo-info { 
+    background: #000; border: 1px solid #222; padding: 8px; margin-bottom: 12px; 
+    text-align: center; font-family: monospace; font-size: 12px; color: #00ff00; 
 }
 
-.photo-btn { background: #00bb55; } /* 緑 */
-.geo-btn { background: #007bff; }   /* 青 */
-
-.btn-main .icon { font-size: 24px; margin-bottom: 4px; }
-.btn-main input { display: none; } /* 本物のファイル入力は隠す */
-
-/* GPS情報 */
-.geo-info {
-    background: #000; border: 1px solid #222; border-radius: 6px;
-    padding: 8px; margin-bottom: 12px; text-align: center;
-    font-family: monospace; font-size: 12px; color: #00ff00;
-}
-
-/* 入力欄（はみ出し防止） */
 .input-field {
     width: 100%; background: #222; color: #fff; border: 1px solid #444;
-    padding: 12px; border-radius: 8px; margin-bottom: 10px; font-size: 16px;
-    display: block;
+    padding: 14px; border-radius: 8px; margin-bottom: 10px; font-size: 16px;
 }
-.memo-area { height: 80px; resize: none; }
+.memo-area { height: 100px; }
 
-/* 保存ボタン */
 .btn-save {
-    width: 100%; padding: 16px; border-radius: 10px; border: none;
-    background: #dc3545; color: #fff; font-size: 18px; font-weight: bold;
+    width: 100%; padding: 18px; border-radius: 10px; border: none;
+    background: #dc3545; color: #fff; font-size: 20px; font-weight: bold;
 }
 
-/* テーブル */
-.table-container { overflow-x: auto; }
+/* 履歴テーブル（スクロールで全件見れるようにする） */
+.table-container { 
+    max-height: 400px; /* 履歴が増えてもここでスクロール可能 */
+    overflow-y: auto; 
+    border: 1px solid #222;
+}
 table { width: 100%; border-collapse: collapse; font-size: 12px; }
-th, td { border-bottom: 1px solid #222; padding: 10px; text-align: center; }
+thead { position: sticky; top: 0; background: #333; }
+th, td { border-bottom: 1px solid #222; padding: 12px 8px; text-align: center; }
