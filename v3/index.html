@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <link rel="stylesheet" href="./styles.css?v=101" />
+  <link rel="stylesheet" href="./styles.css?v=105" />
   <title>FieldLog Mini v3.5</title>
 </head>
 <body>
   <main class="container">
-    <details class="card settings-card" open>
+    <details class="card settings-card">
       <summary>⚙️ CSV読み込み (地点,小区分,項目)</summary>
       <input id="listCsvInput" type="file" accept=".csv" style="margin-top:10px;" />
     </details>
@@ -24,6 +24,10 @@
           <span class="icon">📍</span>
           <span class="label">GPS取得 <span id="geoCheck"></span></span>
         </button>
+      </div>
+
+      <div id="previewContainer" style="text-align:center; display:none; margin-bottom:15px;">
+        <img id="imgPreview" style="max-width:100%; height:auto; border-radius:8px; border:1px solid #444;">
       </div>
 
       <div class="geo-info">緯度: <span id="lat">-</span> / 経度: <span id="lng">-</span></div>
@@ -48,6 +52,6 @@
     </section>
   </main>
   <script src="../jszip.min.js"></script>
-  <script src="./app.js?v=101"></script>
+  <script src="./app.js?v=105"></script>
 </body>
 </html>
