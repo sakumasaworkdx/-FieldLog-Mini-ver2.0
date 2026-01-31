@@ -5,52 +5,58 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#00bb55" />
   <link rel="stylesheet" href="./styles.css" />
-  <title>FieldLog Mini v3</title>
+  <title>FieldLog Mini v3.0</title>
 </head>
 <body>
   <header class="topbar">
     <h1>FieldLog Mini <span class="pill">v3.0</span></h1>
-    <div id="swState" class="small"></div>
+    <a href="../index.html" class="nav-link">← v2(旧版)に戻る</a>
   </header>
 
   <main class="container">
     <section class="card">
-      <h2>📸 調査入力</h2>
+      <div class="card-header">
+        <h2>📸 調査入力</h2>
+        <span class="badge">保存数: <span id="count">0</span></span>
+      </div>
+      
       <div class="row">
-        <label class="btnLike primary">
-          📷 写真を撮影
-          <input id="photoInput" type="file" accept="image/*" capture="environment" />
+        <label class="btn primary">
+          📷 写真撮影
+          <input id="photoInput" type="file" accept="image/*" capture="environment" style="display:none;">
         </label>
-        <button id="btnGeo" class="btn primary">📍 GPS取得</button>
-        <button id="btnSave" class="btn danger">💾 保存</button>
+        <button id="btnGeo" class="btn secondary">📍 GPS取得</button>
+        <button id="btnSave" class="btn success">💾 保存</button>
       </div>
 
-      <div class="geo-info">
-        緯度: <span id="lat">-</span> / 経度: <span id="lng">-</span> 
-        <div id="geoWarn" style="color:#ff4444; font-size:11px; display:none;">⚠️ GPS未取得（保存は可能です）</div>
+      <div class="geo-bar">
+        <span>緯度: <span id="lat">-</span></span>
+        <span>経度: <span id="lng">-</span></span>
+        <span id="geoWarn" class="warn-msg" style="display:none;">⚠️ GPS未取得</span>
       </div>
 
       <div class="input-grid">
-        <select id="selLocation" class="select"></select>
-        <select id="selLocation2" class="select"></select>
-        <select id="selItem" class="select"></select>
+        <div class="input-group"><label>地点</label><select id="selLocation"></select></div>
+        <div class="input-group"><label>地点2</label><select id="selLocation2"></select></div>
+        <div class="input-group"><label>項目</label><select id="selItem"></select></div>
       </div>
+      
       <textarea id="memo" placeholder="備考1"></textarea>
       <textarea id="memo2" placeholder="備考2"></textarea>
 
-      <div class="row preview-area">
-        <img id="preview" class="thumb" alt="" />
-        <div class="kv mono">
-          <div id="autoName">-</div>
-          <div id="ts">-</div>
+      <div class="preview-panel">
+        <img id="preview" src="" alt="" />
+        <div class="preview-info">
+          <div id="autoName" class="mono">---</div>
+          <div id="ts" class="small">---</div>
         </div>
       </div>
     </section>
 
     <section class="card">
-      <h2>📊 保存データ確認 (撮り忘れチェック)</h2>
-      <div class="table-wrapper">
-        <table id="dataTable">
+      <h2>📊 データ確認 (撮り忘れチェック)</h2>
+      <div class="table-container">
+        <table>
           <thead>
             <tr><th>時刻</th><th>地点</th><th>写真</th><th>GPS</th></tr>
           </thead>
@@ -58,8 +64,8 @@
         </table>
       </div>
       <div class="row" style="margin-top:15px">
-        <button id="btnExportZip" class="btn primary">📦 ZIP書き出し</button>
-        <button id="btnClear" class="btn danger">🗑️ 全削除</button>
+        <button id="btnExportZip" class="btn primary">📦 ZIP出力 (CSV+写真)</button>
+        <button id="btnClear" class="btn danger-outline">🗑️ 全削除</button>
       </div>
       <div id="exportStatus" class="hint"></div>
     </section>
