@@ -47,42 +47,29 @@ $("photoInput").onchange = (e) => {
     }
 };
 
-// CSV読み込み (3列構造を厳守して取り込み)
+// CSV読み込み (A:地点, B:小区分, C:項目)
 $("listCsvInput").onchange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     try {
         const text = await file.text();
         const rows = text.split(/\r?\n/).map(r => r.trim()).filter(r => r !== "");
-        
         const tx = db.transaction("lists", "readwrite");
         const store = tx.objectStore("lists");
         await store.clear();
 
         rows.forEach((row, idx) => {
-            // カンマで分割。引用符がある場合は除去
             const cols = row.split(",").map(c => c.replace(/^["']|["']$/g, '').trim());
-            // 地点(A), 小区分(B), 項目(C) が存在する場合のみ格納
             if (cols.length >= 1) {
-                store.put({ 
-                    id: idx, 
-                    loc: cols[0] || "", 
-                    sub: cols[1] || "", 
-                    item: cols[2] || "" 
-                });
+                store.put({ id: idx, loc: cols[0] || "", sub: cols[1] || "", item: cols[2] || "" });
             }
         });
-
-        tx.oncomplete = () => { 
-            alert("リストを更新しました。"); 
-            loadLists(); 
-        };
+        tx.oncomplete = () => { alert("リストを更新しました。"); loadLists(); };
     } catch (err) {
-        alert("読み込み失敗: ファイル形式を確認してください。");
+        alert("読み込み失敗。");
     }
 };
 
-// プルダウン生成 (重複を排除してソート)
 async function loadLists() {
     if (!db) return;
     const tx = db.transaction("lists", "readonly");
@@ -91,11 +78,8 @@ async function loadLists() {
         const updateSelect = (id, values, defaultText) => {
             const el = $(id);
             el.innerHTML = `<option value="">${defaultText}</option>`;
-            // 「地点」等の見出し文字を除外し、重複を排除
             const headers = ["地点", "小区分", "項目", "loc", "sub", "item"];
-            const uniqueValues = [...new Set(values)]
-                .filter(v => v && !headers.includes(v.toLowerCase()));
-            
+            const uniqueValues = [...new Set(values)].filter(v => v && !headers.includes(v.toLowerCase()));
             uniqueValues.forEach(v => {
                 const opt = document.createElement("option");
                 opt.value = v; opt.textContent = v;
@@ -108,16 +92,10 @@ async function loadLists() {
     };
 }
 
-// 保存処理 (制約なし：写真・地点・メモのいずれかがあれば保存可能)
+// 保存
 $("btnSave").onclick = async () => {
-    const hasPhoto = currentFile;
-    const hasMemo = $("memo").value.trim() !== "";
-    const hasLoc = $("selLocation").value !== "";
-
-    if (!hasPhoto && !hasMemo && !hasLoc) {
-        alert("保存する内容（写真・地点・メモ）を入力してください。");
-        return;
-    }
+    const hasData = currentFile || $("memo").value.trim() !== "" || $("selLocation").value !== "";
+    if (!hasData) { alert("保存するデータがありません。"); return; }
 
     const id = Date.now();
     const rec = {
@@ -136,7 +114,6 @@ $("btnSave").onclick = async () => {
     const tx = db.transaction("surveys", "readwrite");
     tx.objectStore("surveys").put(rec).onsuccess = () => {
         alert("保存完了");
-        // リセット
         currentFile = null;
         $("previewContainer").style.display = "none";
         $("photoCheck").textContent = "";
@@ -145,15 +122,14 @@ $("btnSave").onclick = async () => {
     };
 };
 
-// 履歴表示 (地点・小区分・項目を表示)
+// 履歴表示 ＆ 写真再表示
 async function renderTable() {
     if (!db) return;
     const tx = db.transaction("surveys", "readonly");
     tx.objectStore("surveys").getAll().onsuccess = (e) => {
         const listEl = $("list");
         listEl.innerHTML = "";
-        const sorted = e.target.result.sort((a,b) => b.id - a.id);
-        sorted.forEach(r => {
+        e.target.result.sort((a,b) => b.id - a.id).forEach(r => {
             const tr = document.createElement("tr");
             tr.style.fontSize = "11px";
             tr.innerHTML = `
@@ -180,23 +156,28 @@ async function renderTable() {
     };
 }
 
-// ZIP一括ダウンロード
+// 📦 一括ダウンロード (CSV + 写真)
 $("btnDownloadAll").onclick = async () => {
     const tx = db.transaction("surveys", "readonly");
     tx.objectStore("surveys").getAll().onsuccess = async (e) => {
         const data = e.target.result;
-        if (data.length === 0) return;
+        if (!data || data.length === 0) { alert("データがありません"); return; }
+
         const zip = new JSZip();
         let csv = "ID,日時,緯度,経度,地点,小区分,項目,備考,写真名\n";
-        data.forEach(r => {
+
+        for (const r of data) {
             csv += `${r.id},${r.createdAt},${r.lat},${r.lng},${r.location},${r.subLocation},${r.item},"${(r.memo || "").replace(/"/g, '""')}",${r.photoName}\n`;
-            if (r.photoBlob.size > 0) zip.file(r.photoName, r.photoBlob);
-        });
+            if (r.photoBlob && r.photoBlob.size > 0) {
+                zip.file(r.photoName, r.photoBlob); // ZIP直下に写真を配置
+            }
+        }
+
         zip.file("data_list.csv", "\ufeff" + csv);
         const content = await zip.generateAsync({ type: "blob" });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(content);
-        link.download = `survey_export.zip`;
+        link.download = `survey_export_${Date.now()}.zip`;
         link.click();
     };
 };
