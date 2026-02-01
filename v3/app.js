@@ -104,26 +104,36 @@ async function renderTable() {
     tx.objectStore("surveys").getAll().onsuccess = (e) => {
         const listEl = $("list");
         listEl.innerHTML = "";
-        const sorted = e.target.result.sort((a,b) => b.id - a.id);
-        sorted.forEach(r => {
+        const data = e.target.result.sort((a,b) => b.id - a.id);
+        
+        data.forEach(r => {
             const tr = document.createElement("tr");
             tr.style.fontSize = "11px";
+            
+            // ◯ の部分に id を持たせるか、直接 onclick を埋め込む
+            const photoStatus = r.photoBlob && r.photoBlob.size > 0 ? "◯" : "-";
+            const geoStatus = r.lat !== 0 ? "◯" : "-";
+
             tr.innerHTML = `
                 <td style="text-align:left;">${r.location}</td>
                 <td style="text-align:left;">${r.subLocation}</td>
                 <td style="text-align:left;">${r.item}</td>
-                <td class="view-photo" style="cursor:pointer; color:#00bb55; font-weight:bold;">${r.photoBlob.size > 0 ? "◯" : "-"}</td>
-                <td>${r.lat !== 0 ? "◯" : "-"}</td>
+                <td class="photo-cell" style="cursor:pointer; color:#00bb55; font-weight:bold; font-size:16px;">${photoStatus}</td>
+                <td>${geoStatus}</td>
             `;
-            // ◯ を押した時の処理
-            if(r.photoBlob.size > 0) {
-                tr.querySelector(".view-photo").onclick = () => {
+
+            // 写真がある場合のみクリックイベントを設定
+            if (r.photoBlob && r.photoBlob.size > 0) {
+                const cell = tr.querySelector(".photo-cell");
+                cell.onclick = (event) => {
+                    event.preventDefault(); // 連打や誤動作防止
                     const reader = new FileReader();
                     reader.onload = (re) => {
                         $("imgPreview").src = re.target.result;
                         $("previewContainer").style.display = "block";
-                        $("previewLabel").innerHTML = `表示中: ${r.location}<br><small>${r.memo || "メモなし"}</small>`;
-                        window.scrollTo({top: 0, behavior: 'smooth'}); // 上部にスクロールして見せる
+                        $("previewLabel").innerHTML = `【過去データ表示】<br>${r.location} / ${r.subLocation}<br>備考: ${r.memo || "なし"}`;
+                        // スムーズに上へ移動
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
                     };
                     reader.readAsDataURL(r.photoBlob);
                 };
@@ -133,30 +143,23 @@ async function renderTable() {
     };
 }
 
-// 【新設】一括ダウンロード (ZIP)
+// 一括ダウンロード (ZIP)
 $("btnDownloadAll").onclick = async () => {
     const tx = db.transaction("surveys", "readonly");
     tx.objectStore("surveys").getAll().onsuccess = async (e) => {
         const data = e.target.result;
         if (data.length === 0) { alert("データがありません"); return; }
-
         const zip = new JSZip();
-        let csvContent = "ID,日時,緯度,経度,地点,小区分,項目,備考,写真名\n";
-
+        let csv = "ID,日時,緯度,経度,地点,小区分,項目,備考,写真名\n";
         data.forEach(r => {
-            const row = [
-                r.id, r.createdAt, r.lat, r.lng, r.location, r.subLocation, r.item, 
-                `"${(r.memo || "").replace(/"/g, '""')}"`, r.photoName
-            ].join(",");
-            csvContent += row + "\n";
+            csv += `${r.id},${r.createdAt},${r.lat},${r.lng},${r.location},${r.subLocation},${r.item},"${(r.memo || "").replace(/"/g, '""')}",${r.photoName}\n`;
             if (r.photoBlob.size > 0) zip.file(r.photoName, r.photoBlob);
         });
-
-        zip.file("data_list.csv", "\ufeff" + csvContent); // Excel化け防止BOM付
+        zip.file("data_list.csv", "\ufeff" + csv);
         const content = await zip.generateAsync({ type: "blob" });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(content);
-        link.download = `survey_data_${Date.now()}.zip`;
+        link.download = `survey_v3_data_${Date.now()}.zip`;
         link.click();
     };
 };
