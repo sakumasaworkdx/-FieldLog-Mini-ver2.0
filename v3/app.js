@@ -9,7 +9,7 @@ req.onupgradeneeded = (e) => {
 };
 req.onsuccess = (e) => { db = e.target.result; renderTable(); loadLists(); };
 
-// GPS取得
+// GPS
 $("btnGeo").onclick = () => {
     $("geoCheck").textContent = "⌛";
     navigator.geolocation.getCurrentPosition(
@@ -24,7 +24,7 @@ $("btnGeo").onclick = () => {
     );
 };
 
-// 写真選択・プレビュー
+// 写真プレビュー
 $("photoInput").onchange = (e) => {
     currentFile = e.target.files[0];
     if(currentFile) {
@@ -33,7 +33,6 @@ $("photoInput").onchange = (e) => {
         reader.onload = (re) => {
             $("imgPreview").src = re.target.result;
             $("previewContainer").style.display = "block";
-            $("previewLabel").textContent = "新規撮影(保存前)";
         };
         reader.readAsDataURL(currentFile);
     }
@@ -70,8 +69,7 @@ async function loadLists() {
             const headers = ["地点", "小区分", "項目", "loc", "sub", "item"];
             [...new Set(values)].filter(v => v && !headers.includes(v.toLowerCase())).forEach(v => {
                 const opt = document.createElement("option");
-                opt.value = opt.textContent = v;
-                el.appendChild(opt);
+                opt.value = opt.textContent = v; el.appendChild(opt);
             });
         };
         updateSelect("selLocation", data.map(d => d.loc), "地点を選択");
@@ -83,7 +81,7 @@ async function loadLists() {
 // 保存
 $("btnSave").onclick = async () => {
     const hasData = currentFile || $("memo").value.trim() !== "" || $("selLocation").value !== "";
-    if (!hasData) { alert("データがありません"); return; }
+    if (!hasData) { alert("保存するデータがありません"); return; }
     const id = Date.now();
     const rec = {
         id: id, createdAt: new Date().toISOString(),
@@ -105,6 +103,7 @@ $("btnSave").onclick = async () => {
     };
 };
 
+// 履歴表示 ＆ 再表示
 async function renderTable() {
     if (!db) return;
     const tx = db.transaction("surveys", "readonly");
@@ -120,7 +119,7 @@ async function renderTable() {
                     const reader = new FileReader();
                     reader.onload = (re) => {
                         $("imgPreview").src = re.target.result; $("previewContainer").style.display = "block";
-                        $("previewLabel").innerHTML = `【表示】${r.location}<br>${r.memo || ""}`;
+                        $("previewLabel").innerHTML = `【履歴】${r.location}<br>${r.memo || ""}`;
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                     };
                     reader.readAsDataURL(r.photoBlob);
@@ -131,7 +130,7 @@ async function renderTable() {
     };
 }
 
-// 【重要】一括ダウンロード：画像を確実に同期してZIP化
+// 【完全修正】一括ダウンロード
 $("btnDownloadAll").onclick = async () => {
     const tx = db.transaction("surveys", "readonly");
     tx.objectStore("surveys").getAll().onsuccess = async (e) => {
@@ -141,24 +140,23 @@ $("btnDownloadAll").onclick = async () => {
         const zip = new JSZip();
         let csv = "ID,日時,緯度,経度,地点,小区分,項目,備考,写真名\n";
 
-        // 画像データの追加をPromise.allで確実に完了させる
-        const imagePromises = data.map(async (r) => {
+        // 画像を1つずつバイナリに変換してZIPに追加
+        for (const r of data) {
             csv += `${r.id},${r.createdAt},${r.lat},${r.lng},${r.location},${r.subLocation},${r.item},"${(r.memo || "").replace(/"/g, '""')}",${r.photoName}\n`;
+            
             if (r.photoBlob && r.photoBlob.size > 0) {
-                // 配列にBlobデータを格納
-                zip.file(r.photoName, r.photoBlob);
+                // BlobをArrayBufferに変換してZIPに追加（より確実な方法）
+                const arrayBuffer = await r.photoBlob.arrayBuffer();
+                zip.file(r.photoName, arrayBuffer);
             }
-        });
-
-        // すべてのZIP追加処理が終わるのを待つ
-        await Promise.all(imagePromises);
+        }
 
         zip.file("data_list.csv", "\ufeff" + csv);
         
         const content = await zip.generateAsync({ type: "blob" });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(content);
-        link.download = `survey_v3_data_${Date.now()}.zip`;
+        link.download = `survey_data_${Date.now()}.zip`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
