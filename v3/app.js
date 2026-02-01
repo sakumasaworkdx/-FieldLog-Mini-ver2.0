@@ -14,8 +14,11 @@ $("btnGeo").onclick = () => {
             $("lng").textContent = p.coords.longitude.toFixed(6);
             $("geoCheck").textContent = "✅";
         },
-        (err) => { $("geoCheck").textContent = "❌"; alert("GPS失敗"); },
-        { enableHighAccuracy: true, timeout: 10000 }
+        (err) => { 
+            $("geoCheck").textContent = "❌"; 
+            console.log("GPS利用不可（スキップ可）"); 
+        },
+        { enableHighAccuracy: true, timeout: 5000 }
     );
 };
 
@@ -24,30 +27,50 @@ $("photoInput").onchange = (e) => {
     currentFile = e.target.files[0];
     if(currentFile) {
         $("photoCheck").textContent = "✅";
-        $("previewLabel").textContent = "新規撮影(保存前)";
         const reader = new FileReader();
         reader.onload = (re) => {
             $("imgPreview").src = re.target.result;
             $("previewContainer").style.display = "block";
+            $("previewLabel").textContent = "新規撮影(保存前)";
         };
         reader.readAsDataURL(currentFile);
     }
 };
 
-// CSV読み込み
+// CSV読み込み (エラー耐性を強化)
 $("listCsvInput").onchange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const text = await file.text();
-    const rows = text.split(/\r?\n/).filter(line => line.trim() !== "").slice(1);
-    const tx = db.transaction("lists", "readwrite");
-    const store = tx.objectStore("lists");
-    await store.clear();
-    rows.forEach((row, idx) => {
-        const cols = row.split(",");
-        store.put({ id: idx, loc: cols[0]?.trim(), sub: cols[1]?.trim(), item: cols[2]?.trim() });
-    });
-    tx.oncomplete = () => { alert("リスト更新完了"); loadLists(); };
+    try {
+        const text = await file.text();
+        // 行分割し、空行を除去。ヘッダの有無に関わらず処理
+        const rows = text.split(/\r?\n/).map(r => r.trim()).filter(r => r !== "");
+        
+        // 1行目が「地点」などの漢字を含む場合はヘッダとして飛ばす
+        const startIdx = (rows[0].includes("地点") || rows[0].includes("loc")) ? 1 : 0;
+        const dataRows = rows.slice(startIdx);
+
+        const tx = db.transaction("lists", "readwrite");
+        const store = tx.objectStore("lists");
+        await store.clear();
+
+        dataRows.forEach((row, idx) => {
+            const cols = row.split(",");
+            store.put({ 
+                id: idx, 
+                loc: cols[0]?.replace(/"/g, '') || "", 
+                sub: cols[1]?.replace(/"/g, '') || "", 
+                item: cols[2]?.replace(/"/g, '') || "" 
+            });
+        });
+
+        tx.oncomplete = () => { 
+            alert(dataRows.length + "件のリストを読み込みました"); 
+            loadLists(); 
+        };
+    } catch (err) {
+        alert("CSVの形式が正しくない可能性があります: " + err.message);
+    }
 };
 
 async function loadLists() {
@@ -70,69 +93,72 @@ async function loadLists() {
     };
 }
 
-// 保存
+// 保存 (入力チェックを最小限に)
 $("btnSave").onclick = async () => {
-    if (!$("selLocation").value) { alert("地点を選択してください"); return; }
+    // 地点・GPS・写真・メモ、いずれも「必須」とはせず、何かしらアクションがあれば保存可能にする
+    const hasData = currentFile || $("memo").value.trim() !== "" || $("selLocation").value !== "";
+    
+    if (!hasData) {
+        alert("保存するデータ（写真、地点、またはメモ）がありません。");
+        return;
+    }
+
     const id = Date.now();
     const rec = {
         id: id,
         createdAt: new Date().toISOString(),
         lat: currentGeo ? currentGeo.coords.latitude : 0,
         lng: currentGeo ? currentGeo.coords.longitude : 0,
-        location: $("selLocation").value,
+        location: $("selLocation").value || "-",
         subLocation: $("selSubLocation").value || "-",
         item: $("selItem").value || "-",
         memo: $("memo").value,
         photoName: currentFile ? `img_${id}.jpg` : "no_image.jpg",
         photoBlob: currentFile || new Blob([])
     };
+
     const tx = db.transaction("surveys", "readwrite");
-    tx.objectStore("surveys").put(rec).onsuccess = () => {
+    const store = tx.objectStore("surveys");
+    store.put(rec).onsuccess = () => {
         alert("保存完了");
+        // リセット
         currentFile = null;
+        currentGeo = null;
         $("previewContainer").style.display = "none";
         $("photoCheck").textContent = "";
+        $("geoCheck").textContent = "";
+        $("lat").textContent = "-";
+        $("lng").textContent = "-";
         $("memo").value = "";
         renderTable(); 
     };
 };
 
-// 履歴テーブル表示 ＆ 写真表示機能
+// 履歴テーブル
 async function renderTable() {
     if (!db) return;
     const tx = db.transaction("surveys", "readonly");
     tx.objectStore("surveys").getAll().onsuccess = (e) => {
         const listEl = $("list");
         listEl.innerHTML = "";
-        const data = e.target.result.sort((a,b) => b.id - a.id);
-        
-        data.forEach(r => {
+        const sorted = e.target.result.sort((a,b) => b.id - a.id);
+        sorted.forEach(r => {
             const tr = document.createElement("tr");
             tr.style.fontSize = "11px";
-            
-            // ◯ の部分に id を持たせるか、直接 onclick を埋め込む
-            const photoStatus = r.photoBlob && r.photoBlob.size > 0 ? "◯" : "-";
-            const geoStatus = r.lat !== 0 ? "◯" : "-";
-
             tr.innerHTML = `
                 <td style="text-align:left;">${r.location}</td>
                 <td style="text-align:left;">${r.subLocation}</td>
                 <td style="text-align:left;">${r.item}</td>
-                <td class="photo-cell" style="cursor:pointer; color:#00bb55; font-weight:bold; font-size:16px;">${photoStatus}</td>
-                <td>${geoStatus}</td>
+                <td class="photo-cell" style="cursor:pointer; color:#00bb55; font-weight:bold; font-size:16px;">${r.photoBlob.size > 0 ? "◯" : "-"}</td>
+                <td>${r.lat !== 0 ? "◯" : "-"}</td>
             `;
-
-            // 写真がある場合のみクリックイベントを設定
-            if (r.photoBlob && r.photoBlob.size > 0) {
-                const cell = tr.querySelector(".photo-cell");
-                cell.onclick = (event) => {
-                    event.preventDefault(); // 連打や誤動作防止
+            if (r.photoBlob.size > 0) {
+                tr.querySelector(".photo-cell").onclick = () => {
                     const reader = new FileReader();
                     reader.onload = (re) => {
                         $("imgPreview").src = re.target.result;
                         $("previewContainer").style.display = "block";
-                        $("previewLabel").innerHTML = `【過去データ表示】<br>${r.location} / ${r.subLocation}<br>備考: ${r.memo || "なし"}`;
-                        // スムーズに上へ移動
+                        $("previewLabel").innerHTML = `【過去表示】${r.location}<br>備考: ${r.memo || ""}`;
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                     };
                     reader.readAsDataURL(r.photoBlob);
@@ -143,12 +169,12 @@ async function renderTable() {
     };
 }
 
-// 一括ダウンロード (ZIP)
+// 一括DL
 $("btnDownloadAll").onclick = async () => {
     const tx = db.transaction("surveys", "readonly");
     tx.objectStore("surveys").getAll().onsuccess = async (e) => {
         const data = e.target.result;
-        if (data.length === 0) { alert("データがありません"); return; }
+        if (data.length === 0) return;
         const zip = new JSZip();
         let csv = "ID,日時,緯度,経度,地点,小区分,項目,備考,写真名\n";
         data.forEach(r => {
@@ -159,7 +185,7 @@ $("btnDownloadAll").onclick = async () => {
         const content = await zip.generateAsync({ type: "blob" });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(content);
-        link.download = `survey_v3_data_${Date.now()}.zip`;
+        link.download = `survey_data.zip`;
         link.click();
     };
 };
