@@ -1,6 +1,6 @@
-const CACHE_NAME = "fieldlog-v3.9-final";
+// 名前を v4.0 に更新することでブラウザに再読込を促します
+const CACHE_NAME = "fieldlog-v4.0-cache";
 
-// 「./」から始めることで、場所を確実にブラウザへ伝えます
 const URLS_TO_CACHE = [
   "./v3/index.html",
   "./v3/app.js",
@@ -14,7 +14,7 @@ self.addEventListener("install", (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(URLS_TO_CACHE))
   );
-  self.skipWaiting();
+  self.skipWaiting(); // 新しいSWをすぐに有効化
 });
 
 self.addEventListener("activate", (e) => {
@@ -31,7 +31,6 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     caches.match(event.request).then((res) => {
       return res || fetch(event.request).then((response) => {
-        // 地図の背景タイルを動的に保存する設定
         if (event.request.url.includes("tile.openstreetmap.org")) {
           const resClone = response.clone();
           caches.open("map-tiles").then((cache) => {
