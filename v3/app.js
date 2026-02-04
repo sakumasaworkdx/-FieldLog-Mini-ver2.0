@@ -1,6 +1,5 @@
 const $ = (id) => document.getElementById(id);
-let db, currentGeo = null, currentFile = null, currentHeading = null, currentDirName = "-";
-let map = null, markersLayer = null;
+let db, currentGeo = null, currentFile = null;
 
 const req = indexedDB.open("offline_survey_pwa_db", 2);
 req.onupgradeneeded = (e) => {
@@ -10,33 +9,7 @@ req.onupgradeneeded = (e) => {
 };
 req.onsuccess = (e) => { db = e.target.result; renderTable(); loadLists(); };
 
-function getDirectionName(deg) {
-    if (deg === null || deg === undefined) return "-";
-    const directions = ["北", "北北東", "北東", "東北東", "東", "東南東", "南東", "南南東", "南", "南南西", "南西", "西南西", "西", "西北西", "北西", "北北西"];
-    const index = Math.round(deg / 22.5) % 16;
-    return directions[index];
-}
-
-function updateHeading(e) {
-    let h = e.webkitCompassHeading || (360 - e.alpha);
-    if (h !== undefined) {
-        currentHeading = Math.round(h);
-        currentDirName = getDirectionName(currentHeading);
-        $("heading").textContent = `${currentHeading}° (${currentDirName})`;
-    }
-}
-
-function initMap() {
-    if (map) return;
-    map = L.map('map').setView([35.6812, 139.7671], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OSM',
-        crossOrigin: true
-    }).addTo(map);
-    markersLayer = L.layerGroup().addTo(map);
-}
-
-$("btnGeo").onclick = async () => {
+$("btnGeo").onclick = () => {
     $("geoCheck").textContent = "⌛";
     navigator.geolocation.getCurrentPosition(
         (p) => {
@@ -48,15 +21,6 @@ $("btnGeo").onclick = async () => {
         (err) => { $("geoCheck").textContent = "❌"; },
         { enableHighAccuracy: true, timeout: 7000 }
     );
-    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-        try {
-            const state = await DeviceOrientationEvent.requestPermission();
-            if (state === 'granted') window.addEventListener("deviceorientation", updateHeading, true);
-        } catch (e) { console.error(e); }
-    } else {
-        window.addEventListener("deviceorientationabsolute", updateHeading, true) || 
-        window.addEventListener("deviceorientation", updateHeading, true);
-    }
 };
 
 $("photoInput").onchange = (e) => {
@@ -67,7 +31,6 @@ $("photoInput").onchange = (e) => {
         reader.onload = (re) => {
             $("imgPreview").src = re.target.result;
             $("previewContainer").style.display = "block";
-            $("previewLabel").textContent = "新規撮影プレビュー";
         };
         reader.readAsDataURL(currentFile);
     }
@@ -98,7 +61,8 @@ async function loadLists() {
         const updateSelect = (id, values, label) => {
             const el = $(id);
             el.innerHTML = `<option value="">${label}</option>`;
-            [...new Set(values)].filter(v => v && !["地点","小区分","項目"].includes(v)).forEach(v => {
+            const headers = ["地点", "小区分", "項目", "loc", "sub", "item"];
+            [...new Set(values)].filter(v => v && !headers.includes(v.toLowerCase())).forEach(v => {
                 const opt = document.createElement("option");
                 opt.value = opt.textContent = v; el.appendChild(opt);
             });
@@ -117,8 +81,6 @@ $("btnSave").onclick = async () => {
         id: id, createdAt: new Date().toISOString(),
         lat: currentGeo ? currentGeo.coords.latitude : 0,
         lng: currentGeo ? currentGeo.coords.longitude : 0,
-        heading: currentHeading || 0,
-        headingName: currentDirName || "-",
         location: $("selLocation").value || "-",
         subLocation: $("selSubLocation").value || "-",
         item: $("selItem").value || "-",
@@ -139,61 +101,40 @@ async function renderTable() {
     if (!db) return;
     const tx = db.transaction("surveys", "readonly");
     tx.objectStore("surveys").getAll().onsuccess = (e) => {
-        const data = e.target.result;
         const listEl = $("list");
         listEl.innerHTML = "";
-        
-        if (data.length > 0) {
-            initMap();
-            markersLayer.clearLayers();
-            const bounds = [];
-            data.sort((a,b) => b.id - a.id).forEach(r => {
-                const tr = document.createElement("tr");
-                tr.style.fontSize = "11px";
-                tr.innerHTML = `<td style="text-align:left;">${r.location}</td><td style="text-align:left;">${r.subLocation}</td><td style="text-align:left;">${r.item}</td><td class="photo-cell" style="cursor:pointer; color:#00bb55; font-weight:bold; font-size:16px;">${r.photoBlob.size > 0 ? "◯" : "-"}</td><td>${r.lat !== 0 ? "◯" : "-"}</td>`;
-                if (r.photoBlob.size > 0) {
-                    tr.querySelector(".photo-cell").onclick = () => {
-                        const reader = new FileReader();
-                        reader.onload = (re) => {
-                            $("imgPreview").src = re.target.result; $("previewContainer").style.display = "block";
-                            $("previewLabel").innerHTML = `【履歴】${r.location}<br>方位: ${r.heading}° (${r.headingName}) / ${r.memo || ""}`;
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                        };
-                        reader.readAsDataURL(r.photoBlob);
+        e.target.result.sort((a,b) => b.id - a.id).forEach(r => {
+            const tr = document.createElement("tr");
+            tr.style.fontSize = "11px";
+            tr.innerHTML = `<td style="text-align:left;">${r.location}</td><td style="text-align:left;">${r.subLocation}</td><td style="text-align:left;">${r.item}</td><td class="photo-cell" style="cursor:pointer; color:#00bb55; font-weight:bold; font-size:16px;">${r.photoBlob.size > 0 ? "◯" : "-"}</td><td>${r.lat !== 0 ? "◯" : "-"}</td>`;
+            if (r.photoBlob.size > 0) {
+                tr.querySelector(".photo-cell").onclick = () => {
+                    const reader = new FileReader();
+                    reader.onload = (re) => {
+                        $("imgPreview").src = re.target.result; $("previewContainer").style.display = "block";
+                        $("previewLabel").innerHTML = `【履歴】${r.location}<br>${r.memo || ""}`;
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
                     };
-                }
-                listEl.appendChild(tr);
-
-                if (r.lat && r.lat !== 0) {
-                    const pos = [r.lat, r.lng];
-                    bounds.push(pos);
-                    const arrowHtml = `<div style="transform: rotate(${r.heading}deg); font-size: 20px; color: #ff3333; text-shadow: 1px 1px 2px #000;">↑</div>`;
-                    L.marker(pos, {icon: L.divIcon({html: arrowHtml, className: 'map-arrow', iconSize: [20, 20], iconAnchor: [10, 10]})})
-                     .addTo(markersLayer).bindPopup(`<b>${r.location}</b><br>${r.headingName}(${r.heading}°)<br>${r.memo || ""}`);
-                }
-            });
-            if (bounds.length > 0) map.fitBounds(bounds, { padding: [20, 20], maxZoom: 16 });
-        }
+                    reader.readAsDataURL(r.photoBlob);
+                };
+            }
+            listEl.appendChild(tr);
+        });
     };
 }
-
-$("btnDeleteAll").onclick = async () => {
-    if (!confirm("【注意】すべての保存履歴を削除します。")) return;
-    if (prompt("確認のため「さくじょ」と入力してください") !== "さくじょ") return;
-    const tx = db.transaction("surveys", "readwrite");
-    tx.objectStore("surveys").clear().onsuccess = () => { renderTable(); alert("削除完了"); };
-};
 
 $("btnDownloadAll").onclick = async () => {
     const tx = db.transaction("surveys", "readonly");
     tx.objectStore("surveys").getAll().onsuccess = async (e) => {
         const data = e.target.result;
-        if (!data || data.length === 0) return;
+        if (!data || data.length === 0) { alert("データがありません"); return; }
         const zip = new JSZip();
-        let csv = "ID,日時,緯度,経度,方位(度),方位(名称),地点,小区分,項目,備考,写真名\n";
+        let csv = "ID,日時,緯度,経度,地点,小区分,項目,備考,写真名\n";
         for (const r of data) {
-            csv += `${r.id},${r.createdAt},${r.lat},${r.lng},${r.heading || 0},${r.headingName || "-"},${r.location},${r.subLocation},${r.item},"${(r.memo || "").replace(/"/g, '""')}",${r.photoName}\n`;
-            if (r.photoBlob && r.photoBlob.size > 0) zip.file(r.photoName, await r.photoBlob.arrayBuffer());
+            csv += `${r.id},${r.createdAt},${r.lat},${r.lng},${r.location},${r.subLocation},${r.item},"${(r.memo || "").replace(/"/g, '""')}",${r.photoName}\n`;
+            if (r.photoBlob && r.photoBlob.size > 0) {
+                zip.file(r.photoName, await r.photoBlob.arrayBuffer());
+            }
         }
         zip.file("data_list.csv", "\ufeff" + csv);
         const content = await zip.generateAsync({ type: "blob" });
