@@ -1,49 +1,36 @@
-const CACHE_NAME = "offline-survey-full-v2.0";
-const ASSETS = [
-  "./",
-  "./index.html",
-  "./app.js",
-  "./styles.css",
-  "./manifest.webmanifest",
-  "./icon-192.png",
-  "./icon-512.png"
+const CACHE_NAME = "fieldlog-v3.9-cache";
+const URLS_TO_CACHE = [
+  "./v3/index.html",
+  "./v3/app.js",
+  "./v3/styles.css",
+  "./jszip.min.js",
+  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
+  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
 ];
 
-self.addEventListener("install", (event) => {
-  event.waitUntil((async () => {
-    const cache = await caches.open(CACHE_NAME);
-    await cache.addAll(ASSETS);
-    self.skipWaiting();
-  })());
+// インストール時にファイルをキャッシュ
+self.addEventListener("install", (e) => {
+  e.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(URLS_TO_CACHE))
+  );
 });
 
-self.addEventListener("activate", (event) => {
-  event.waitUntil((async () => {
-    const keys = await caches.keys();
-    await Promise.all(keys.map(k => (k !== CACHE_NAME) ? caches.delete(k) : Promise.resolve()));
-    self.clients.claim();
-  })());
-});
-
+// オフライン時でもキャッシュから返す
 self.addEventListener("fetch", (event) => {
-  const req = event.request;
-  event.respondWith((async () => {
-    const cached = await caches.match(req, { ignoreSearch: true });
-    if (cached) return cached;
-    try {
-      const res = await fetch(req);
-      const url = new URL(req.url);
-      if (url.origin === location.origin && req.method === "GET") {
-        const cache = await caches.open(CACHE_NAME);
-        cache.put(req, res.clone());
-      }
-      return res;
-    } catch (e) {
-      if (req.mode === "navigate") {
-        const c = await caches.match("./index.html");
-        if (c) return c;
-      }
-      throw e;
-    }
-  })());
+  event.respondWith(
+    caches.match(event.request).then((res) => {
+      return res || fetch(event.request).then((response) => {
+        // 地図タイルなどは動的にキャッシュ
+        if (event.request.url.includes("tile.openstreetmap.org")) {
+          return caches.open("map-tiles").then((cache) => {
+            cache.put(event.request, response.clone());
+            return response;
+          });
+        }
+        return response;
+      });
+    }).catch(() => {
+      // 完全にオフラインでキャッシュもない場合のフォールバック（任意）
+    })
+  );
 });
