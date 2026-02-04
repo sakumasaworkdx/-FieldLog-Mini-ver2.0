@@ -1,5 +1,6 @@
 const $ = (id) => document.getElementById(id);
 let db, currentGeo = null, currentFile = null, currentHeading = null, currentDirName = "-";
+let map = null, markersLayer = null;
 
 const req = indexedDB.open("offline_survey_pwa_db", 2);
 req.onupgradeneeded = (e) => {
@@ -9,7 +10,6 @@ req.onupgradeneeded = (e) => {
 };
 req.onsuccess = (e) => { db = e.target.result; renderTable(); loadLists(); };
 
-// 16方位変換
 function getDirectionName(deg) {
     if (deg === null || deg === undefined) return "-";
     const directions = ["北", "北北東", "北東", "東北東", "東", "東南東", "南東", "南南東", "南", "南南西", "南西", "西南西", "西", "西北西", "北西", "北北西"];
@@ -17,7 +17,6 @@ function getDirectionName(deg) {
     return directions[index];
 }
 
-// 方位更新（ジャイロセンサー）
 function updateHeading(e) {
     let h = e.webkitCompassHeading || (360 - e.alpha);
     if (h !== undefined) {
@@ -27,10 +26,36 @@ function updateHeading(e) {
     }
 }
 
-// GPS & 方位取得ボタン
+// 地図を更新する関数
+function updateMapData(data) {
+    if (typeof L === 'undefined') return; // Leafletが読み込まれていない場合は何もしない
+    
+    if (!map) {
+        map = L.map('map').setView([35.6812, 139.7671], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OSM'
+        }).addTo(map);
+        markersLayer = L.layerGroup().addTo(map);
+    }
+
+    markersLayer.clearLayers();
+    const bounds = [];
+
+    data.forEach(r => {
+        if (r.lat && r.lat !== 0) {
+            const pos = [r.lat, r.lng];
+            bounds.push(pos);
+            const arrowHtml = `<div style="transform: rotate(${r.heading}deg); font-size: 20px; color: #ff3333; text-shadow: 1px 1px 2px #000;">↑</div>`;
+            L.marker(pos, {icon: L.divIcon({html: arrowHtml, className: 'map-arrow', iconSize: [20, 20], iconAnchor: [10, 10]})})
+             .addTo(markersLayer).bindPopup(`<b>${r.location}</b><br>${r.headingName}(${r.heading}°)`);
+        }
+    });
+
+    if (bounds.length > 0) map.fitBounds(bounds, { padding: [20, 20], maxZoom: 16 });
+}
+
 $("btnGeo").onclick = async () => {
     $("geoCheck").textContent = "⌛";
-    // GPS取得
     navigator.geolocation.getCurrentPosition(
         (p) => {
             currentGeo = p;
@@ -41,8 +66,6 @@ $("btnGeo").onclick = async () => {
         (err) => { $("geoCheck").textContent = "❌"; },
         { enableHighAccuracy: true, timeout: 7000 }
     );
-
-    // 方位センサー取得
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
         try {
             const state = await DeviceOrientationEvent.requestPermission();
@@ -54,7 +77,6 @@ $("btnGeo").onclick = async () => {
     }
 };
 
-// --- 以下、写真プレビュー、CSV読み込み、保存、履歴表示ロジック ---
 $("photoInput").onchange = (e) => {
     currentFile = e.target.files[0];
     if(currentFile) {
@@ -134,9 +156,10 @@ async function renderTable() {
     if (!db) return;
     const tx = db.transaction("surveys", "readonly");
     tx.objectStore("surveys").getAll().onsuccess = (e) => {
+        const data = e.target.result;
         const listEl = $("list");
         listEl.innerHTML = "";
-        e.target.result.sort((a,b) => b.id - a.id).forEach(r => {
+        data.sort((a,b) => b.id - a.id).forEach(r => {
             const tr = document.createElement("tr");
             tr.style.fontSize = "11px";
             tr.innerHTML = `<td style="text-align:left;">${r.location}</td><td style="text-align:left;">${r.subLocation}</td><td style="text-align:left;">${r.item}</td><td class="photo-cell" style="cursor:pointer; color:#00bb55; font-weight:bold; font-size:16px;">${r.photoBlob.size > 0 ? "◯" : "-"}</td><td>${r.lat !== 0 ? "◯" : "-"}</td>`;
@@ -153,6 +176,8 @@ async function renderTable() {
             }
             listEl.appendChild(tr);
         });
+        // 地図更新
+        updateMapData(data);
     };
 }
 
