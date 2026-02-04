@@ -4,7 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <link rel="stylesheet" href="./styles.css?v=110" />
-  <title>FieldLog Mini v3.7</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <title>FieldLog Mini v3.8</title>
+  <style>
+    #map { width: 100%; height: 250px; margin-top: 10px; border-radius: 8px; border: 1px solid #444; background: #222; }
+  </style>
 </head>
 <body>
   <main class="container">
@@ -46,29 +51,18 @@
 
     <section class="card history-card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <h2 style="font-size:14px; margin:0;">📊 保存履歴</h2>
+        <h2 style="font-size:14px; margin:0;">📊 保存履歴・地図</h2>
         <div style="display:flex; gap:8px;">
             <button id="btnDownloadAll" class="btn-blue" style="padding:5px 10px; font-size:12px; border-radius:5px;">📦 一括DL</button>
             <button id="btnDeleteAll" style="padding:5px 10px; font-size:12px; border-radius:5px; background:#660000; color:white; border:none; cursor:pointer;">⚠️ 全削除</button>
         </div>
       </div>
-      <div class="table-container">
+      
+      <div id="map"></div>
+
+      <div class="table-container" style="margin-top:15px;">
         <table>
           <thead>
             <tr>
               <th style="width:30%;">地点</th>
-              <th style="width:25%;">小区分</th>
-              <th style="width:25%;">項目</th>
-              <th style="width:10%;">写</th>
-              <th style="width:10%;">G</th>
-            </tr>
-          </thead>
-          <tbody id="list"></tbody>
-        </table>
-      </div>
-    </section>
-  </main>
-  <script src="../jszip.min.js"></script>
-  <script src="./app.js?v=110"></script>
-</body>
-</html>
+              <th style="width:25%;">
