@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-let db, currentGeo = null, currentFile = null;
+let db, currentGeo = null, currentFile = null, currentHeading = null, currentDirName = "-";
 
 const req = indexedDB.open("offline_survey_pwa_db", 2);
 req.onupgradeneeded = (e) => {
@@ -9,8 +9,28 @@ req.onupgradeneeded = (e) => {
 };
 req.onsuccess = (e) => { db = e.target.result; renderTable(); loadLists(); };
 
-$("btnGeo").onclick = () => {
+// 16方位変換
+function getDirectionName(deg) {
+    if (deg === null || deg === undefined) return "-";
+    const directions = ["北", "北北東", "北東", "東北東", "東", "東南東", "南東", "南南東", "南", "南南西", "南西", "西南西", "西", "西北西", "北西", "北北西"];
+    const index = Math.round(deg / 22.5) % 16;
+    return directions[index];
+}
+
+// 方位更新（ジャイロセンサー）
+function updateHeading(e) {
+    let h = e.webkitCompassHeading || (360 - e.alpha);
+    if (h !== undefined) {
+        currentHeading = Math.round(h);
+        currentDirName = getDirectionName(currentHeading);
+        $("heading").textContent = `${currentHeading}° (${currentDirName})`;
+    }
+}
+
+// GPS & 方位取得ボタン
+$("btnGeo").onclick = async () => {
     $("geoCheck").textContent = "⌛";
+    // GPS取得
     navigator.geolocation.getCurrentPosition(
         (p) => {
             currentGeo = p;
@@ -21,8 +41,20 @@ $("btnGeo").onclick = () => {
         (err) => { $("geoCheck").textContent = "❌"; },
         { enableHighAccuracy: true, timeout: 7000 }
     );
+
+    // 方位センサー取得
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        try {
+            const state = await DeviceOrientationEvent.requestPermission();
+            if (state === 'granted') window.addEventListener("deviceorientation", updateHeading, true);
+        } catch (e) { console.error(e); }
+    } else {
+        window.addEventListener("deviceorientationabsolute", updateHeading, true) || 
+        window.addEventListener("deviceorientation", updateHeading, true);
+    }
 };
 
+// --- 以下、写真プレビュー、CSV読み込み、保存、履歴表示ロジック ---
 $("photoInput").onchange = (e) => {
     currentFile = e.target.files[0];
     if(currentFile) {
@@ -61,8 +93,7 @@ async function loadLists() {
         const updateSelect = (id, values, label) => {
             const el = $(id);
             el.innerHTML = `<option value="">${label}</option>`;
-            const headers = ["地点", "小区分", "項目", "loc", "sub", "item"];
-            [...new Set(values)].filter(v => v && !headers.includes(v.toLowerCase())).forEach(v => {
+            [...new Set(values)].filter(v => v && !["地点","小区分","項目"].includes(v)).forEach(v => {
                 const opt = document.createElement("option");
                 opt.value = opt.textContent = v; el.appendChild(opt);
             });
@@ -81,6 +112,8 @@ $("btnSave").onclick = async () => {
         id: id, createdAt: new Date().toISOString(),
         lat: currentGeo ? currentGeo.coords.latitude : 0,
         lng: currentGeo ? currentGeo.coords.longitude : 0,
+        heading: currentHeading || 0,
+        headingName: currentDirName || "-",
         location: $("selLocation").value || "-",
         subLocation: $("selSubLocation").value || "-",
         item: $("selItem").value || "-",
@@ -112,7 +145,7 @@ async function renderTable() {
                     const reader = new FileReader();
                     reader.onload = (re) => {
                         $("imgPreview").src = re.target.result; $("previewContainer").style.display = "block";
-                        $("previewLabel").innerHTML = `【履歴】${r.location}<br>${r.memo || ""}`;
+                        $("previewLabel").innerHTML = `【履歴】${r.location}<br>方位: ${r.headingName}(${r.heading}°)<br>${r.memo || ""}`;
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                     };
                     reader.readAsDataURL(r.photoBlob);
@@ -123,18 +156,23 @@ async function renderTable() {
     };
 }
 
+$("btnDeleteAll").onclick = async () => {
+    if (!confirm("履歴をすべて削除しますか？")) return;
+    if (prompt("確認のため「さくじょ」と入力してください") !== "さくじょ") return;
+    const tx = db.transaction("surveys", "readwrite");
+    tx.objectStore("surveys").clear().onsuccess = () => { renderTable(); alert("削除しました"); };
+};
+
 $("btnDownloadAll").onclick = async () => {
     const tx = db.transaction("surveys", "readonly");
     tx.objectStore("surveys").getAll().onsuccess = async (e) => {
         const data = e.target.result;
         if (!data || data.length === 0) { alert("データがありません"); return; }
         const zip = new JSZip();
-        let csv = "ID,日時,緯度,経度,地点,小区分,項目,備考,写真名\n";
+        let csv = "ID,日時,緯度,経度,方位(度),方位(名称),地点,小区分,項目,備考,写真名\n";
         for (const r of data) {
-            csv += `${r.id},${r.createdAt},${r.lat},${r.lng},${r.location},${r.subLocation},${r.item},"${(r.memo || "").replace(/"/g, '""')}",${r.photoName}\n`;
-            if (r.photoBlob && r.photoBlob.size > 0) {
-                zip.file(r.photoName, await r.photoBlob.arrayBuffer());
-            }
+            csv += `${r.id},${r.createdAt},${r.lat},${r.lng},${r.heading},${r.headingName},${r.location},${r.subLocation},${r.item},"${(r.memo || "").replace(/"/g, '""')}",${r.photoName}\n`;
+            if (r.photoBlob && r.photoBlob.size > 0) zip.file(r.photoName, await r.photoBlob.arrayBuffer());
         }
         zip.file("data_list.csv", "\ufeff" + csv);
         const content = await zip.generateAsync({ type: "blob" });
