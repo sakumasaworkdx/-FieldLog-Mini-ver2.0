@@ -6,18 +6,13 @@
   <link rel="stylesheet" href="./styles.css?v=110" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-  <title>FieldLog Mini v3.9</title>
+  <title>FieldLog Mini v4.0</title>
   <style>
-    /* 地図の表示スタイル */
-    #map { 
-      width: 100%; 
-      height: 250px; 
-      margin-top: 10px; 
-      border-radius: 8px; 
-      border: 1px solid #444; 
-      background: #222; 
-      z-index: 1; 
-    }
+    #map { width: 100%; height: 250px; margin-top: 5px; border-radius: 8px; border: 1px solid #444; background: #222; z-index: 1; }
+    .map-notice { font-size: 10px; color: #ffcc00; margin-bottom: 5px; line-height: 1.2; font-weight: bold; }
+    .map-controls { display: flex; gap: 5px; margin-bottom: 5px; }
+    .btn-map { flex: 1; padding: 8px 5px; font-size: 11px; border-radius: 5px; cursor: pointer; border: none; background: #333; color: white; }
+    .btn-map:active { background: #555; }
   </style>
 </head>
 <body>
@@ -54,32 +49,28 @@
       <select id="selSubLocation" class="input-field"><option value="">小区分を選択</option></select>
       <select id="selItem" class="input-field"><option value="">項目を選択</option></select>
       <textarea id="memo" class="input-field memo-area" placeholder="備考"></textarea>
-      
       <button id="btnSave" class="btn-save" type="button">💾 データを保存</button>
     </section>
 
     <section class="card history-card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <h2 style="font-size:14px; margin:0;">📊 保存履歴・地図</h2>
+        <h2 style="font-size:14px; margin:0;">📊 履歴と地図</h2>
         <div style="display:flex; gap:8px;">
             <button id="btnDownloadAll" class="btn-blue" style="padding:5px 10px; font-size:12px; border-radius:5px;">📦 一括DL</button>
-            <button id="btnDeleteAll" style="padding:5px 10px; font-size:12px; border-radius:5px; background:#660000; color:white; border:none; cursor:pointer;">⚠️ 全削除</button>
+            <button id="btnDeleteAll" style="padding:5px 10px; font-size:12px; border-radius:5px; background:#660000; color:white; border:none;">⚠️ 全削除</button>
         </div>
       </div>
 
+      <div class="map-notice">⚠️ 現場では事前に表示・拡大した範囲のみ表示されます</div>
+      <div class="map-controls">
+        <button id="btnZoomFit" class="btn-map">📍 全データ表示</button>
+        <button id="btnJumpBase" class="btn-map">🏠 本拠地へ移動</button>
+      </div>
       <div id="map"></div>
 
       <div class="table-container" style="margin-top:15px;">
         <table>
-          <thead>
-            <tr>
-              <th style="width:30%;">地点</th>
-              <th style="width:25%;">小区分</th>
-              <th style="width:25%;">項目</th>
-              <th style="width:10%;">写</th>
-              <th style="width:10%;">G</th>
-            </tr>
-          </thead>
+          <thead><tr><th>地点</th><th>小区分</th><th>項目</th><th>写</th><th>G</th></tr></thead>
           <tbody id="list"></tbody>
         </table>
       </div>
@@ -88,12 +79,9 @@
   <script src="../jszip.min.js"></script>
   <script src="./app.js?v=110"></script>
   <script>
-  if ('serviceWorker' in navigator) {
-    // ひとつ上の階層にある sw.js を登録しにいく
-    navigator.serviceWorker.register('../sw.js').then(() => {
-      console.log("Service Worker Active");
-    });
-  }
-</script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('../sw.js').then(() => console.log("SW Active"));
+    }
+  </script>
 </body>
 </html>
