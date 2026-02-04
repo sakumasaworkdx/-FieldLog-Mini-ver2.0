@@ -1,49 +1,41 @@
-const CACHE_NAME = "offline-survey-full-v2.0";
-const ASSETS = [
-  "./",
-  "./index.html",
-  "./app.js",
-  "./styles.css",
-  "./manifest.webmanifest",
-  "./icon-192.png",
-  "./icon-512.png"
+const CACHE_NAME = "fieldlog-v3.7-final-fix";
+const URLS_TO_CACHE = [
+  "./v3/index.html",
+  "./v3/app.js",
+  "./v3/styles.css",
+  "./jszip.min.js"
 ];
 
-self.addEventListener("install", (event) => {
-  event.waitUntil((async () => {
-    const cache = await caches.open(CACHE_NAME);
-    await cache.addAll(ASSETS);
-    self.skipWaiting();
-  })());
+self.addEventListener("install", (e) => {
+  e.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      // 1つずつキャッシュし、万が一1つ失敗しても他を生かす
+      return Promise.allSettled(
+        URLS_TO_CACHE.map(url => cache.add(url))
+      );
+    })
+  );
+  self.skipWaiting();
 });
 
-self.addEventListener("activate", (event) => {
-  event.waitUntil((async () => {
-    const keys = await caches.keys();
-    await Promise.all(keys.map(k => (k !== CACHE_NAME) ? caches.delete(k) : Promise.resolve()));
-    self.clients.claim();
-  })());
+self.addEventListener("activate", (e) => {
+  e.waitUntil(
+    caches.keys().then((keys) => {
+      return Promise.all(
+        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
+      );
+    })
+  );
+  return self.clients.claim();
 });
 
-self.addEventListener("fetch", (event) => {
-  const req = event.request;
-  event.respondWith((async () => {
-    const cached = await caches.match(req, { ignoreSearch: true });
-    if (cached) return cached;
-    try {
-      const res = await fetch(req);
-      const url = new URL(req.url);
-      if (url.origin === location.origin && req.method === "GET") {
-        const cache = await caches.open(CACHE_NAME);
-        cache.put(req, res.clone());
-      }
-      return res;
-    } catch (e) {
-      if (req.mode === "navigate") {
-        const c = await caches.match("./index.html");
-        if (c) return c;
-      }
-      throw e;
-    }
-  })());
+self.addEventListener("fetch", (e) => {
+  e.respondWith(
+    caches.match(e.request).then((res) => {
+      return res || fetch(e.request).catch(() => {
+        // オフライン時に見つからない場合はindex.htmlを返す保険
+        if (e.request.mode === 'navigate') return caches.match("./v3/index.html");
+      });
+    })
+  );
 });
