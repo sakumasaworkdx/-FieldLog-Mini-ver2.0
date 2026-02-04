@@ -1,5 +1,6 @@
 const $ = (id) => document.getElementById(id);
 let db, currentGeo = null, currentFile = null, currentHeading = null, currentDirName = "-";
+let map = null, markersLayer = null;
 
 const req = indexedDB.open("offline_survey_pwa_db", 2);
 req.onupgradeneeded = (e) => {
@@ -9,7 +10,6 @@ req.onupgradeneeded = (e) => {
 };
 req.onsuccess = (e) => { db = e.target.result; renderTable(); loadLists(); };
 
-// 16方位変換
 function getDirectionName(deg) {
     if (deg === null || deg === undefined) return "-";
     const directions = ["北", "北北東", "北東", "東北東", "東", "東南東", "南東", "南南東", "南", "南南西", "南西", "西南西", "西", "西北西", "北西", "北北西"];
@@ -17,7 +17,6 @@ function getDirectionName(deg) {
     return directions[index];
 }
 
-// 方位更新
 function updateHeading(e) {
     let h = e.webkitCompassHeading || (360 - e.alpha);
     if (h !== undefined) {
@@ -27,7 +26,16 @@ function updateHeading(e) {
     }
 }
 
-// GPS & 方位取得ボタン
+function initMap() {
+    if (map) return;
+    map = L.map('map').setView([35.6812, 139.7671], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OSM',
+        crossOrigin: true
+    }).addTo(map);
+    markersLayer = L.layerGroup().addTo(map);
+}
+
 $("btnGeo").onclick = async () => {
     $("geoCheck").textContent = "⌛";
     navigator.geolocation.getCurrentPosition(
@@ -40,7 +48,6 @@ $("btnGeo").onclick = async () => {
         (err) => { $("geoCheck").textContent = "❌"; },
         { enableHighAccuracy: true, timeout: 7000 }
     );
-
     if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
         try {
             const state = await DeviceOrientationEvent.requestPermission();
@@ -77,9 +84,7 @@ $("listCsvInput").onchange = async (e) => {
         await store.clear();
         rows.forEach((row, idx) => {
             const cols = row.split(",").map(c => c.replace(/^["']|["']$/g, '').trim());
-            if (cols.length >= 1) {
-                store.put({ id: idx, loc: cols[0] || "", sub: cols[1] || "", item: cols[2] || "" });
-            }
+            if (cols.length >= 1) store.put({ id: idx, loc: cols[0] || "", sub: cols[1] || "", item: cols[2] || "" });
         });
         tx.oncomplete = () => { alert("リスト更新完了"); loadLists(); };
     } catch (err) { alert("読み込み失敗"); }
@@ -93,8 +98,7 @@ async function loadLists() {
         const updateSelect = (id, values, label) => {
             const el = $(id);
             el.innerHTML = `<option value="">${label}</option>`;
-            const headers = ["地点", "小区分", "項目", "loc", "sub", "item"];
-            [...new Set(values)].filter(v => v && !headers.includes(v.toLowerCase())).forEach(v => {
+            [...new Set(values)].filter(v => v && !["地点","小区分","項目"].includes(v)).forEach(v => {
                 const opt = document.createElement("option");
                 opt.value = opt.textContent = v; el.appendChild(opt);
             });
@@ -135,63 +139,67 @@ async function renderTable() {
     if (!db) return;
     const tx = db.transaction("surveys", "readonly");
     tx.objectStore("surveys").getAll().onsuccess = (e) => {
+        const data = e.target.result;
         const listEl = $("list");
         listEl.innerHTML = "";
-        e.target.result.sort((a,b) => b.id - a.id).forEach(r => {
-            const tr = document.createElement("tr");
-            tr.style.fontSize = "11px";
-            tr.innerHTML = `<td style="text-align:left;">${r.location}</td><td style="text-align:left;">${r.subLocation}</td><td style="text-align:left;">${r.item}</td><td class="photo-cell" style="cursor:pointer; color:#00bb55; font-weight:bold; font-size:16px;">${r.photoBlob.size > 0 ? "◯" : "-"}</td><td>${r.lat !== 0 ? "◯" : "-"}</td>`;
-            if (r.photoBlob.size > 0) {
-                tr.querySelector(".photo-cell").onclick = () => {
-                    const reader = new FileReader();
-                    reader.onload = (re) => {
-                        $("imgPreview").src = re.target.result; $("previewContainer").style.display = "block";
-                        $("previewLabel").innerHTML = `【履歴】${r.location}<br>方位: ${r.heading}° (${r.headingName}) / ${r.memo || ""}`;
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
+        
+        if (data.length > 0) {
+            initMap();
+            markersLayer.clearLayers();
+            const bounds = [];
+            data.sort((a,b) => b.id - a.id).forEach(r => {
+                const tr = document.createElement("tr");
+                tr.style.fontSize = "11px";
+                tr.innerHTML = `<td style="text-align:left;">${r.location}</td><td style="text-align:left;">${r.subLocation}</td><td style="text-align:left;">${r.item}</td><td class="photo-cell" style="cursor:pointer; color:#00bb55; font-weight:bold; font-size:16px;">${r.photoBlob.size > 0 ? "◯" : "-"}</td><td>${r.lat !== 0 ? "◯" : "-"}</td>`;
+                if (r.photoBlob.size > 0) {
+                    tr.querySelector(".photo-cell").onclick = () => {
+                        const reader = new FileReader();
+                        reader.onload = (re) => {
+                            $("imgPreview").src = re.target.result; $("previewContainer").style.display = "block";
+                            $("previewLabel").innerHTML = `【履歴】${r.location}<br>方位: ${r.heading}° (${r.headingName}) / ${r.memo || ""}`;
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                        };
+                        reader.readAsDataURL(r.photoBlob);
                     };
-                    reader.readAsDataURL(r.photoBlob);
-                };
-            }
-            listEl.appendChild(tr);
-        });
+                }
+                listEl.appendChild(tr);
+
+                if (r.lat && r.lat !== 0) {
+                    const pos = [r.lat, r.lng];
+                    bounds.push(pos);
+                    const arrowHtml = `<div style="transform: rotate(${r.heading}deg); font-size: 20px; color: #ff3333; text-shadow: 1px 1px 2px #000;">↑</div>`;
+                    L.marker(pos, {icon: L.divIcon({html: arrowHtml, className: 'map-arrow', iconSize: [20, 20], iconAnchor: [10, 10]})})
+                     .addTo(markersLayer).bindPopup(`<b>${r.location}</b><br>${r.headingName}(${r.heading}°)<br>${r.memo || ""}`);
+                }
+            });
+            if (bounds.length > 0) map.fitBounds(bounds, { padding: [20, 20], maxZoom: 16 });
+        }
     };
 }
 
 $("btnDeleteAll").onclick = async () => {
-    if (!confirm("【注意】すべての保存履歴を削除します。よろしいですか？")) return;
-    const check = prompt("確認のため、ひらがなで「さくじょ」と入力してください");
-    if (check !== "さくじょ") {
-        alert("入力内容が一致しないため、削除を中止しました");
-        return;
-    }
+    if (!confirm("【注意】すべての保存履歴を削除します。")) return;
+    if (prompt("確認のため「さくじょ」と入力してください") !== "さくじょ") return;
     const tx = db.transaction("surveys", "readwrite");
-    tx.objectStore("surveys").clear().onsuccess = () => {
-        alert("すべての履歴を削除しました");
-        renderTable();
-    };
+    tx.objectStore("surveys").clear().onsuccess = () => { renderTable(); alert("削除完了"); };
 };
 
 $("btnDownloadAll").onclick = async () => {
     const tx = db.transaction("surveys", "readonly");
     tx.objectStore("surveys").getAll().onsuccess = async (e) => {
         const data = e.target.result;
-        if (!data || data.length === 0) { alert("データがありません"); return; }
+        if (!data || data.length === 0) return;
         const zip = new JSZip();
         let csv = "ID,日時,緯度,経度,方位(度),方位(名称),地点,小区分,項目,備考,写真名\n";
         for (const r of data) {
             csv += `${r.id},${r.createdAt},${r.lat},${r.lng},${r.heading || 0},${r.headingName || "-"},${r.location},${r.subLocation},${r.item},"${(r.memo || "").replace(/"/g, '""')}",${r.photoName}\n`;
-            if (r.photoBlob && r.photoBlob.size > 0) {
-                const arrayBuffer = await r.photoBlob.arrayBuffer();
-                zip.file(r.photoName, arrayBuffer);
-            }
+            if (r.photoBlob && r.photoBlob.size > 0) zip.file(r.photoName, await r.photoBlob.arrayBuffer());
         }
         zip.file("data_list.csv", "\ufeff" + csv);
         const content = await zip.generateAsync({ type: "blob" });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(content);
         link.download = `survey_data_${Date.now()}.zip`;
-        document.body.appendChild(link);
         link.click();
-        document.body.removeChild(link);
     };
 };
